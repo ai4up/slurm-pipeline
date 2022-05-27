@@ -1,0 +1,44 @@
+jobs:
+  - name: feature-engineering
+    countries: [spain]
+    script: /p/projects/eubucco/git-eubucco/database/feature-engineering/fts.py
+    data_dir: /p/projects/eubucco/data/2-database-city-level-v0_1
+    log_dir: /p/tmp/floriann/feature-engineering/spain-demo
+    resources:
+      cpus: 1
+      time: "06:00:00"
+    special_cases:
+      - name: tiny-cities
+        file:
+          type: geom.csv
+          file_size_max: 10000000
+        resources:
+          cpus: 1
+          time: "01:00:00"
+      - name: small-cities
+        file:
+          type: geom.csv
+          file_size_min: 10000000
+          file_size_max: 20000000
+        resources:
+          cpus: 1
+          time: "03:00:00"
+      - name: medium-cities
+        file:
+          type: geom.csv
+          file_size_min: 20000000
+          file_size_max: 100000000
+        resources:
+          cpus: 4
+          time: "12:00:00"
+      - name: large-cities
+        file:
+          type: geom.csv
+          file_size_min: 100000000
+        resources:
+          cpus: 8
+          time: "24:00:00"
+  - name: streets
+    resources:
+      cpus: 2
+      time: "12:00:00"

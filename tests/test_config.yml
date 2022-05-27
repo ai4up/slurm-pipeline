@@ -1,0 +1,21 @@
+jobs:
+  - name: feature-engineering
+    countries: [netherlands, spain, france]
+    data_dir: ~
+    script: some-script.py
+    log_dir: tests/logs
+    resources:
+      cpus: 2
+      time: 02:00:00
+    special_cases:
+      - name: small-cities
+        file:
+          type: geom.csv
+          file_size_max: 20000
+        resources:
+          cpus: 1
+          time: 01:00:00
+  - name: streets
+    resources:
+      cpus: 2
+      time: 12:00:00
