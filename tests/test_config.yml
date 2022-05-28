@@ -22,3 +22,6 @@ jobs:
       keep_work_dir: False
       exp_backoff_factor: 4
       poll_interval: 1
+      slack:
+        channel: "#test-slurm-bot"
+        token: ""

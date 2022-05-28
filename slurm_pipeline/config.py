@@ -13,6 +13,8 @@ DEFAULT_EXP_BACKOFF_FACTOR = 4
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_KEEP_WORK_DIR = False
 DEFAULT_LEFT_OVER = None
+DEFAULT_SLACK_CHANNEL = None
+DEFAULT_SLACK_TOKEN = None
 
 SCHEMA = """
 type: object
@@ -87,6 +89,14 @@ properties:
                             type: integer
                             minimum: 10
                             maximum: 3600
+                        slack:
+                            type: object
+                            required: [channel, token]
+                            properties:
+                                channel:
+                                    type: string
+                                token:
+                                    type: string
     properties:
         type: object
         properties:
@@ -110,6 +120,14 @@ properties:
                 type: integer
                 minimum: 10
                 maximum: 3600
+            slack:
+                type: object
+                required: [channel, token]
+                properties:
+                    channel:
+                        type: string
+                    token:
+                        type: string
 """
 
 logger = logging.getLogger(__name__)
@@ -125,7 +143,7 @@ def load():
     _set_defaults(config)
     _merge_defaults(config)
 
-    logger.debug('Successfully interpolated config:\n' + json.dumps(config, indent=2))
+    logger.info('Successfully interpolated config:\n' + json.dumps(config, indent=2))
     return config
 
 
@@ -169,6 +187,9 @@ def _set_defaults(config):
     config['properties']['keep_work_dir'] = config['properties'].get('keep_work_dir', DEFAULT_KEEP_WORK_DIR)
     config['properties']['poll_interval'] = config['properties'].get('poll_interval', DEFAULT_POLL_INTERVAL)
     config['properties']['exp_backoff_factor'] = config['properties'].get('exp_backoff_factor', DEFAULT_EXP_BACKOFF_FACTOR)
+    config['properties']['slack'] = config['properties'].get('slack', {})
+    config['properties']['slack']['channel'] = config['properties']['slack'].get('channel', DEFAULT_SLACK_CHANNEL)
+    config['properties']['slack']['token'] = config['properties']['slack'].get('token', DEFAULT_SLACK_TOKEN)
 
 
 def _merge_defaults(config):

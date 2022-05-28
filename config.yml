@@ -47,3 +47,6 @@ properties:
   exp_backoff_factor: 4
   max_retries: 3
   poll_interval: 30
+  slack:
+    channel: "#eubucco-ml-thesis"
+    token: <to be added>

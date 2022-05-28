@@ -4,6 +4,7 @@ import json
 import time
 import shutil
 import logging
+import datetime
 from enum import Enum
 from pathlib import Path
 from collections import defaultdict
@@ -11,7 +12,7 @@ from collections import defaultdict
 import config
 import slurm
 from slurm import Status, SlurmException
-
+import slack_notifications as slack
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +71,11 @@ class Scheduler():
         self.keep_work_dir = job_config['properties']['keep_work_dir']
         self.max_retries = job_config['properties']['max_retries']
         self.poll_interval = job_config['properties']['poll_interval']
+        self.slack_channel = job_config['properties']['slack']['channel']
+        self.slack_token = job_config['properties']['slack']['token']
         self.exp_backoff_factor = job_config['properties']['exp_backoff_factor']
 
+        self.start_time = time.time()
         self.workdir = os.path.join(self.log_dir, str(uuid.uuid4()))
         self.work_packages = []
         self.n_wps = None
@@ -89,6 +93,7 @@ class Scheduler():
             self.monitor()
 
         self.persist_results()
+        self.notify()
         self.cleanup()
 
 
@@ -159,6 +164,16 @@ class Scheduler():
         logger.info('All pending work processed. Persisting results...')
         self._persist_work_status(WorkPackage.Status.SUCCEEDED)
         self._persist_work_status(WorkPackage.Status.FAILED)
+
+
+    def notify(self):
+        if self.slack_channel and self.slack_token:
+            duration =  str(datetime.timedelta(seconds=time.time() - self.start_time)).split('.')[0]
+            msg = f'⌛  Slurm {self.job_name} job finished after {duration} hours.\n'
+            msg += f'🌎  Processed countries: {", ".join(self.countries)}'
+            msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
+            msg += f'🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.'
+            slack.send_message(msg, self.slack_channel, self.slack_token)
 
 
     def cleanup(self):
