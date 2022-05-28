@@ -36,6 +36,14 @@ class WorkPackage():
         self.old_job_ids = []
 
 
+    @staticmethod
+    def init_failed(path, error_msg):
+        wp = WorkPackage(path, cpus=None, time=None)
+        wp.status = WorkPackage.Status.FAILED
+        wp.error_msg = error_msg
+        return wp
+
+
     def encode(self):
         return {
             'path': self.path,
@@ -101,8 +109,14 @@ class Scheduler():
         logger.info('Initialized queue...')
         for country in self.countries:
             for path in self._get_work_paths(country, self.data_dir, self.left_over):
-                resource_conf = config.get_resource_config(path, self.job_config)
-                wp = WorkPackage(path, **resource_conf)
+                try:
+                    resource_conf = config.get_resource_config(path, self.job_config)
+                    wp = WorkPackage(path, **resource_conf)
+
+                except Exception as e:
+                    logger.error(f'Failed to initialize work package for {path}: {e}')
+                    wp = WorkPackage.init_failed(path, str(e))
+
                 self.work_packages.append(wp)
 
         self.n_wps = len(self.work_packages)
@@ -322,7 +336,7 @@ class Scheduler():
     def _get_work_paths(self, country_name, data_dir, left_over=''):
 
         file_prefix = f'failed_{left_over}_' if left_over else ''
-        file_path = os.path.join(data_dir, country_name, "paths_" + file_prefix + country_name + ".txt")
+        file_path = os.path.join(data_dir, country_name, 'paths_' + file_prefix + country_name + '.txt')
 
         with open(file_path) as f:
             paths = [line.rstrip() for line in f]
