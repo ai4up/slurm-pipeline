@@ -10,7 +10,7 @@ from collections import defaultdict
 
 import config
 import slurm
-from slurm import Status
+from slurm import Status, SlurmException
 
 
 POLL_INTERVAL = 30
@@ -36,6 +36,7 @@ class WorkPackage():
         self.name = Path(path).stem
         self.status = WorkPackage.Status.PENDING
         self.slurm_status = None
+        self.error_msg = None
         self.stderr_log = None
         self.stdout_log = None
         self.job_id = None
@@ -52,8 +53,9 @@ class WorkPackage():
             'slurm_status': self.slurm_status.name if self.slurm_status else None,
             'n_tries': self.n_tries,
             'job_id': self.job_id,
-            'stdout_log': self.stderr_log,
-            'stderr_log': self.stdout_log,
+            'stdout_log': self.stdout_log,
+            'stderr_log': self.stderr_log,
+            'error_msg': self.error_msg,
             'old_job_ids': self.old_job_ids
         }
 
@@ -119,7 +121,13 @@ class Scheduler():
 
         for wp in self.scheduled_work():
 
-            s = wp.slurm_status = slurm.status(wp.job_id)
+            try:
+                s = wp.slurm_status = slurm.status(wp.job_id)
+
+            except SlurmException as e:
+                logger.error(f'Failed to determine Slurm job status: {e}')
+                self._decommission(wp, str(e))
+                continue
 
             if s is Status.COMPLETED:
                 self._process_success(wp)
@@ -221,7 +229,9 @@ class Scheduler():
         self._requeue_work(wp)
 
 
-    def _decommission(self, wp):
+    def _decommission(self, wp, error_msg=None):
+        if error_msg:
+            wp.error_msg = error_msg
         wp.status = WorkPackage.Status.FAILED
         self._persist_work_status()
 
@@ -245,23 +255,29 @@ class Scheduler():
 
         logger.debug(f'Scheduling Slurm job for {len(wps)} work packages with {cpus} cpus and a time limit of {time}...')
 
-        job_ids = slurm.sbatch_array(
-            workfile,
-            array=array_conf,
-            script=self.script,
-            cpus=wps[0].cpus,
-            time=wps[0].time,
-            job_name=self.job_name,
-            log_dir=self.log_dir,
-            error='%x_%A_%a.stderr',
-            output='%x_%A_%a.stdout'
-            )
+        try:
+            job_ids = slurm.sbatch_array(
+                workfile,
+                array=array_conf,
+                script=self.script,
+                cpus=wps[0].cpus,
+                time=wps[0].time,
+                job_name=self.job_name,
+                log_dir=self.log_dir,
+                error='%x_%A_%a.stderr',
+                output='%x_%A_%a.stdout'
+                )
 
-        for wp in wps:
-            wp.n_tries += 1
-            wp.job_id = job_ids.pop(0)
-            wp.stdout_log = os.path.join(self.log_dir, f'{self.job_name}_{wp.job_id}.stdout')
-            wp.stderr_log = os.path.join(self.log_dir, f'{self.job_name}_{wp.job_id}.stderr')
+            for wp in wps:
+                wp.n_tries += 1
+                wp.job_id = job_ids.pop(0)
+                wp.stdout_log = os.path.join(self.log_dir, f'{self.job_name}_{wp.job_id}.stdout')
+                wp.stderr_log = os.path.join(self.log_dir, f'{self.job_name}_{wp.job_id}.stderr')
+
+        except SlurmException as e:
+            logger.error(f'Failed to submit Slurm job array: {e}')
+            for wp in wps:
+                self._decommission(wp, str(e))
 
 
     def _persist_workfile(self, wps):
