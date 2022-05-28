@@ -13,14 +13,6 @@ import slurm
 from slurm import Status, SlurmException
 
 
-POLL_INTERVAL = 30
-EXP_BACKOFF_FACTOR = 4
-MAX_RETRIES = 3
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 logger = logging.getLogger(__name__)
 
 
@@ -66,17 +58,21 @@ class WorkPackage():
 
 class Scheduler():
 
-    def __init__(self, config, job_name, left_over=None, keep_work_dir=False):
-        self.config = config
-        self.job_name = job_name
-        self.left_over = left_over
-        self.keep_work_dir = keep_work_dir
-        self.countries = self._job_conf()['countries']
-        self.script = self._job_conf()['script']
-        self.log_dir = self._job_conf()['log_dir']
-        self.data_dir = self._job_conf()['data_dir']
-        self.workdir = os.path.join(self.log_dir, str(uuid.uuid4()))
+    def __init__(self, job_config):
+        self.job_config = job_config
+        self.job_name = job_config['name']
+        self.script = job_config['script']
+        self.log_dir = job_config['log_dir']
+        self.data_dir = job_config['data_dir']
+        self.countries = job_config['countries']
 
+        self.left_over = job_config['properties']['left_over']
+        self.keep_work_dir = job_config['properties']['keep_work_dir']
+        self.max_retries = job_config['properties']['max_retries']
+        self.poll_interval = job_config['properties']['poll_interval']
+        self.exp_backoff_factor = job_config['properties']['exp_backoff_factor']
+
+        self.workdir = os.path.join(self.log_dir, str(uuid.uuid4()))
         self.work_packages = []
         self.n_wps = None
 
@@ -100,7 +96,7 @@ class Scheduler():
         logger.info('Initialized queue...')
         for country in self.countries:
             for path in self._get_work_paths(country, self.data_dir, self.left_over):
-                resource_conf = config.get_resource_config(path, self._job_conf())
+                resource_conf = config.get_resource_config(path, self.job_config)
                 wp = WorkPackage(path, **resource_conf)
                 self.work_packages.append(wp)
 
@@ -155,8 +151,8 @@ class Scheduler():
 
 
     def wait(self):
-        logger.info(f'Waiting {POLL_INTERVAL}s until new poll...')
-        time.sleep(POLL_INTERVAL)
+        logger.info(f'Waiting {self.poll_interval}s until new poll...')
+        time.sleep(self.poll_interval)
 
 
     def persist_results(self):
@@ -211,14 +207,14 @@ class Scheduler():
 
 
     def _process_timeout(self, wp):
-        wp.time *= EXP_BACKOFF_FACTOR
-        logger.error(f'Job {wp.name} ({wp.job_id}) ran into timeout. Rescheduling with {EXP_BACKOFF_FACTOR}x higher timeout: {wp.time}.')
+        wp.time *= self.exp_backoff_factor
+        logger.error(f'Job {wp.name} ({wp.job_id}) ran into timeout. Rescheduling with {self.exp_backoff_factor}x higher timeout: {wp.time}.')
         self._requeue_work(wp)
 
 
     def _process_oom(self, wp):
-        wp.cpus *= EXP_BACKOFF_FACTOR #TODO max(wp.cpus, MAX_CPUS ->broadwell)
-        logger.error(f'Job {wp.name} ({wp.job_id}) ran out of memory. Rescheduling with {EXP_BACKOFF_FACTOR}x higher cpu count: {wp.cpus}.')
+        wp.cpus *= self.exp_backoff_factor #TODO max(wp.cpus, MAX_CPUS ->broadwell)
+        logger.error(f'Job {wp.name} ({wp.job_id}) ran out of memory. Rescheduling with {self.exp_backoff_factor}x higher cpu count: {wp.cpus}.')
         self._requeue_work(wp)
 
 
@@ -244,8 +240,8 @@ class Scheduler():
 
 
     def _requeue_work(self, wp):
-        if wp.n_tries >= MAX_RETRIES:
-            logger.error(f'Work package for {wp.path} failed to schedule after {MAX_RETRIES} retries. Removing from queue.')
+        if wp.n_tries >= self.max_retries:
+            logger.error(f'Work package for {wp.path} failed to schedule after {self.max_retries} retries. Removing from queue.')
             self._decommission(wp)
             return
 
@@ -338,12 +334,3 @@ class Scheduler():
         logger.debug(f'Work was grouped in {len(list(groups.values()))} groups with {list(groups.keys())} cpu & timeout configurations respectively.')
         yield from groups.values()
 
-
-    def _job_conf(self):
-        return next(conf for conf in self.config['jobs'] if conf['name'] == self.job_name)
-
-
-if __name__ == '__main__':
-    conf = config.load()
-    scheduler = Scheduler(conf, 'feature-engineering')
-    scheduler.main()

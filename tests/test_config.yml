@@ -15,7 +15,10 @@ jobs:
         resources:
           cpus: 1
           time: 01:00:00
-  - name: streets
-    resources:
-      cpus: 2
-      time: 12:00:00
+    properties:
+      left_over: ~
+      max_retries: 0
+      log_level: INFO
+      keep_work_dir: False
+      exp_backoff_factor: 4
+      poll_interval: 1

@@ -4,6 +4,9 @@ jobs:
     script: /p/projects/eubucco/git-eubucco/database/feature-engineering/fts.py
     data_dir: /p/projects/eubucco/data/2-database-city-level-v0_1
     log_dir: /p/tmp/floriann/feature-engineering/spain-demo
+    properties:
+      left_over: ''
+      log_level: INFO
     resources:
       cpus: 1
       time: "06:00:00"
@@ -38,7 +41,9 @@ jobs:
         resources:
           cpus: 8
           time: "24:00:00"
-  - name: streets
-    resources:
-      cpus: 2
-      time: "12:00:00"
+
+properties:
+  log_level: WARN
+  exp_backoff_factor: 4
+  max_retries: 3
+  poll_interval: 30

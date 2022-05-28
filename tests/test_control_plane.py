@@ -2,19 +2,22 @@ import uuid
 import random
 import json
 from os import path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import yaml
 
 from slurm_pipeline import control_plane
 
 
-def _test_config():
+def _test_job_config():
     test_dir = path.dirname(path.realpath(__file__))
     config_path = path.join(test_dir, 'test_config.yml')
 
     with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+
+    return config['jobs'][0]
+
 
 
 def _results():
@@ -39,16 +42,16 @@ def _mock_get_work_paths(*args):
     {'cpus': 1, 'time': '01:00:00'},
     {'cpus': 2, 'time': '02:00:00'},
     {'cpus': 2, 'time': '02:00:00'}])
-@patch("slurm_pipeline.control_plane.slurm.subprocess.run", side_effect=[
-    MagicMock(**{'stdout.decode.return_value': 'COMPLETED'}),
-    MagicMock(**{'stdout.decode.return_value': 'FAILED'}),
-    MagicMock(**{'stdout.decode.return_value': 'FAILED'})])
+@patch("slurm_pipeline.control_plane.slurm.status", side_effect=[
+    control_plane.slurm.Status.COMPLETED,
+    control_plane.slurm.Status.FAILED,
+    control_plane.slurm.Status.FAILED])
 @patch("slurm_pipeline.control_plane.slurm.sbatch_array")
 def test_main(sbatch_mock, *args):
     job_id = uuid.uuid4()
     sbatch_mock.return_value = [f'{job_id}_0', f'{job_id}_1',  f'{job_id}_2']
 
-    scheduler = control_plane.Scheduler(_test_config(), 'feature-engineering')
+    scheduler = control_plane.Scheduler(_test_job_config())
     scheduler.main()
 
     succeeded_work, failed_work = _results()
@@ -71,7 +74,7 @@ def test_groupby_resource_allocation():
     wp4 = control_plane.WorkPackage('/path/to/city_4', cpus=2, time='01:00:00')
     wp5 = control_plane.WorkPackage('/path/to/city_4', cpus=2, time='02:00:00')
 
-    scheduler = control_plane.Scheduler(_test_config(), 'feature-engineering')
+    scheduler = control_plane.Scheduler(_test_job_config())
     grouped_wps = list(scheduler._groupby_resource_allocation([wp1, wp2, wp3, wp4, wp5]))
 
     assert len(grouped_wps) == 3

@@ -1,85 +1,92 @@
+import os
 import json
 import logging
-import os
 
 import yaml
 import jsonschema
 
-CONFIG_FILE = 'config.yml'
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
-PROJECT_DIR = os.path.dirname(SRC_DIR)
-CONFIG_PATH = os.path.join(PROJECT_DIR, CONFIG_FILE)
+CONFIG_PATH = os.path.join(SRC_DIR, '..', 'config.yml')
 
+DEFAULT_POLL_INTERVAL = 30
+DEFAULT_EXP_BACKOFF_FACTOR = 4
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_KEEP_WORK_DIR = False
+DEFAULT_LEFT_OVER = None
 
-logger = logging.getLogger(__name__)
-
-schema = """
+SCHEMA = """
 type: object
 properties:
 
-    pipelines:
+    jobs:
         type: array
         items:
             type: object
-            required: [name, resource, concourses]
+            required: [name, script, data_dir, log_dir, resources]
             properties:
                 name:
                     type: string
-                resource:
+                script:
                     type: string
-                jobs:
-                    type: array
-                group:
+                data_dir:
                     type: string
-                concourses:
+                log_dir:
+                    type: string
+                resources:
+                    type: object
+                    required: [cpus, time]
+                    properties:
+                        cpus:
+                            type: integer
+                        time:
+                            type: string
+                special_cases:
                     type: array
+                    items:
+                        type: object
+                        properties:
+                            name:
+                                type: string
+                            resources:
+                                type: object
+                                properties:
+                                    cpus:
+                                        type: integer
+                                    time:
+                                        type: string
+                            file:
+                                type: object
+                                required: [type]
+                                properties:
+                                    type:
+                                        type: string
+                                    file_size_min:
+                                        type: integer
+                                    file_size_max:
+                                        type: integer
                 properties:
                     type: object
                     properties:
-                        current_builds_only:
+                        log_level:
+                            type: string
+                            enum:
+                            - DEBUG
+                            - INFO
+                            - WARN
+                            - ERROR
+                        left_over:
+                            type: string
+                        keep_work_dir:
                             type: boolean
-
-    concourses:
-        type: array
-        items:
-            type: object
-            required: [name, username, password, url]
-            properties:
-                name:
-                    type: string
-                username:
-                    type: string
-                password:
-                    type: string
-                url:
-                    type: string
-                landscape_git_url:
-                    type: string
-
-    repo:
-        type: object
-        required: [git_url]
-        properties:
-            git_url:
-                type: string
-            branch:
-                type: string
-
-    commit:
-        type: object
-        required: [story_pattern]
-        properties:
-            authors:
-                type: array
-            msg_pattern:
-                type: string
-            story_pattern:
-                type: string
-            last_n_commits:
-                type: integer
-            merge_commits_only:
-                type: boolean
-
+                        exp_backoff_factor:
+                            type: integer
+                        max_retries:
+                            type: integer
+                            minimum: 0
+                        poll_interval:
+                            type: integer
+                            minimum: 10
+                            maximum: 3600
     properties:
         type: object
         properties:
@@ -90,20 +97,22 @@ properties:
                 - INFO
                 - WARN
                 - ERROR
-            enable_build_grouping:
+            left_over:
+                type: string
+            keep_work_dir:
                 type: boolean
-            enable_concurrency:
-                type: boolean
-            experimental_enable_concurrent_logging:
-                type: boolean
-            polling_interval_min:
-                type: number
-                minimum: 1
-                maximum: 60
-            timeout_sec:
-                type: number
+            exp_backoff_factor:
+                type: integer
+            max_retries:
+                type: integer
+                minimum: 0
+            poll_interval:
+                type: integer
                 minimum: 10
+                maximum: 3600
 """
+
+logger = logging.getLogger(__name__)
 
 
 class UsageError(Exception):
@@ -112,10 +121,33 @@ class UsageError(Exception):
 
 def load():
     config = _load_config_yaml()
-    # _validate(config)
+    _validate(config)
+    _set_defaults(config)
+    _merge_defaults(config)
 
     logger.debug('Successfully interpolated config:\n' + json.dumps(config, indent=2))
     return config
+
+
+def get_job_config(config, job_name):
+    return next(job_conf for job_conf in config['jobs'] if job_conf['name'] == job_name)
+
+
+def get_resource_config(base_path, job_config):
+    default_resource_config = job_config['resources']
+
+    for sc in job_config['special_cases']:
+
+        if file_config := sc.get('file'):
+            path = f"{base_path}_{file_config['type']}"
+            size = os.path.getsize(path)
+            min = file_config.get('file_size_min', 0)
+            max = file_config.get('file_size_max', float('inf'))
+
+            if size >= min and size <= max:
+                return {**default_resource_config, **sc['resources']}
+
+    return default_resource_config
 
 
 def _load_config_yaml():
@@ -127,21 +159,20 @@ def _load_config_yaml():
 
 
 def _validate(config):
-    jsonschema.validate(config, yaml.safe_load(schema))
+    jsonschema.validate(config, yaml.safe_load(SCHEMA))
 
 
-def get_resource_config(base_path, job_config):
-    default_resource_config = job_config['resources']
+def _set_defaults(config):
+    config['properties'] = config.get('properties', {})
+    config['properties']['left_over'] = config['properties'].get('left_over', DEFAULT_LEFT_OVER)
+    config['properties']['max_retries'] = config['properties'].get('max_retries', DEFAULT_MAX_RETRIES)
+    config['properties']['keep_work_dir'] = config['properties'].get('keep_work_dir', DEFAULT_KEEP_WORK_DIR)
+    config['properties']['poll_interval'] = config['properties'].get('poll_interval', DEFAULT_POLL_INTERVAL)
+    config['properties']['exp_backoff_factor'] = config['properties'].get('exp_backoff_factor', DEFAULT_EXP_BACKOFF_FACTOR)
 
-    for c in job_config['special_cases']:
 
-        if file_config := c.get('file'):
-            path = f"{base_path}_{file_config['type']}"
-            size = os.path.getsize(path)
-            min = file_config.get('file_size_min', 0)
-            max = file_config.get('file_size_max', float('inf'))
+def _merge_defaults(config):
+    for job_conf in config['jobs']:
+        job_conf['properties'] = {**config['properties'], **job_conf['properties']}
 
-            if size >= min and size <= max:
-                return {**default_resource_config, **c['resources']}
-
-    return default_resource_config
+print(load())
