@@ -203,9 +203,11 @@ class Scheduler():
 
 
     def _process_cancellation(self, wp):
-        # TODO: check if canceled by user or due to OOM issues
-        self._decommission(wp)
-        logger.error(f'Job {wp.name} ({wp.job_id}) was canceled. Reason unknown. Removing job from queue.')
+        if self._oom_cancellation(wp):
+            self._process_oom(wp)
+        else:
+            self._decommission(wp)
+            logger.error(f'Job {wp.name} ({wp.job_id}) was canceled. Reason unknown. Removing job from queue.')
 
 
     def _process_timeout(self, wp):
@@ -227,6 +229,11 @@ class Scheduler():
 
     def _process_retry(self, wp):
         self._requeue_work(wp)
+
+
+    def _oom_cancellation(self, wp):
+        with open(wp.stderr_log) as f:
+            return 'Exceeded job memory limit' in f.read()
 
 
     def _decommission(self, wp, error_msg=None):
