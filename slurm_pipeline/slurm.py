@@ -1,4 +1,5 @@
 import os
+import datetime
 import subprocess
 import logging
 from enum import Enum
@@ -123,6 +124,36 @@ def status(job_id):
         return Status(s)
     except ValueError:
         return Status.UNKNOWN
+
+
+def parse_time(time_str):
+    """
+    Acceptable time formats include 'minutes', 'minutes:seconds', 'hours:minutes:seconds', 'days-hours', 'days-hours:minutes' and 'days-hours:minutes:seconds'.
+    https://slurm.schedmd.com/sbatch.html#OPT_time
+    """
+    d, h, m, s = 0, 0, 0, 0
+
+    if '-' in time_str:
+        d, time_str = time_str.split('-')
+
+    t = time_str.split(':')
+
+    if len(t) == 1 and d:
+        h = t[0]
+    elif len(t) == 2 and d:
+        h = t[0]
+        m = t[1]
+    elif len(t) == 1:
+        m = t[0]
+    elif len(t) == 2:
+        m = t[0]
+        s = t[1]
+    elif len(t) == 3:
+        h = t[0]
+        m = t[1]
+        s = t[2]
+
+    return datetime.timedelta(days=int(d), hours=int(h), minutes=int(m), seconds=int(s))
 
 
 def _array_conf(workfile):

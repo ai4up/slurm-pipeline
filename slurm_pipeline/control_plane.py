@@ -61,6 +61,11 @@ class WorkPackage():
         }
 
 
+    def minutes(self):
+        timedelta = slurm.parse_time(self.time)
+        return round(timedelta.total_seconds() / 60)
+
+
     def to_json(self):
         return json.dumps(self.encode(), sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
 
@@ -188,6 +193,8 @@ class Scheduler():
             msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
             msg += f'🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.'
             slack.send_message(msg, self.slack_channel, self.slack_token)
+        else:
+            logger.info('No notification hook configured. Consider adding a Slack channel and token to the config.yml.')
 
 
     def cleanup(self):
@@ -236,7 +243,7 @@ class Scheduler():
 
 
     def _process_timeout(self, wp):
-        wp.time *= self.exp_backoff_factor
+        wp.time = wp.minutes() * self.exp_backoff_factor
         logger.error(f'Job {wp.name} ({wp.job_id}) ran into timeout. Rescheduling with {self.exp_backoff_factor}x higher timeout: {wp.time}.')
         self._requeue_work(wp)
 

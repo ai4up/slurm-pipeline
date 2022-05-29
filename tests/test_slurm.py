@@ -17,3 +17,16 @@ def test_status_invalid(_):
     with pytest.raises(Exception) as exc:
         slurm.status('invalid-job-id')
         assert "some-error" in str(exc.value)
+
+@pytest.mark.parametrize('time_str, result_days, result_sec', [
+    ('1-10:00:00', 1, 36000),
+    ('1-10:00', 1, 36000),
+    ('1-10', 1, 36000),
+    ('00:60:00', 0, 3600),
+    ('5:30', 0, 330),
+    ('30', 0, 1800)])
+def test_parse_time(time_str, result_days, result_sec):
+    t = slurm.parse_time(time_str)
+
+    assert t.days == result_days
+    assert t.seconds == result_sec
