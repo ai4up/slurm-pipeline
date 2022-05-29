@@ -6,6 +6,7 @@ from enum import Enum
 from pathlib import Path
 
 MAX_ARRAY_SIZE = 3000
+MAX_CPUS = 32
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,10 @@ def sbatch(script,
 
     job_name = job_name or Path(script).stem
     sbatch_script = sbatch_script or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'slurm-templates', 'sbatch.sh')
+
+    if cpus > MAX_CPUS:
+        logger.warning(f'Requesting {cpus} CPUs, but max allowed is {MAX_CPUS}. Reducing CPUs accordingly.')
+        cpus = MAX_CPUS
 
     options = ''
     options += f' --qos={qos}'

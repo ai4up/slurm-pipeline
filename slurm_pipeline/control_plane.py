@@ -66,6 +66,19 @@ class WorkPackage():
         return round(timedelta.total_seconds() / 60)
 
 
+    def partition(self):
+        return 'standard' if self.cpus <= 16 else 'broadwell'
+
+
+    def qos(self):
+        if self.minutes() <= 24 * 60:
+            return 'short'
+        elif self.minutes() <= 24 * 60 * 7:
+            return 'medium'
+        else:
+            return 'long'
+
+
     def to_json(self):
         return json.dumps(self.encode(), sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
 
@@ -249,9 +262,13 @@ class Scheduler():
 
 
     def _process_oom(self, wp):
-        wp.cpus *= self.exp_backoff_factor #TODO max(wp.cpus, MAX_CPUS ->broadwell)
-        logger.error(f'Job {wp.name} ({wp.job_id}) ran out of memory. Rescheduling with {self.exp_backoff_factor}x higher cpu count: {wp.cpus}.')
-        self._requeue_work(wp)
+        if wp.cpus >= slurm.MAX_CPUS:
+            logger.error(f'Job {wp.name} ({wp.job_id}) ran out of memory, but has already been allocated the maximum number of cpus ({slurm.MAX_CPUS}). Rescheduling not possible. Removing job from queue.')
+            self._decommission(wp)
+        else:
+            wp.cpus *= self.exp_backoff_factor
+            logger.error(f'Job {wp.name} ({wp.job_id}) ran out of memory. Rescheduling with {self.exp_backoff_factor}x higher cpu count: {wp.cpus}.')
+            self._requeue_work(wp)
 
 
     def _process_unknown_status(self, wp):
@@ -301,6 +318,8 @@ class Scheduler():
                 script=self.script,
                 cpus=wps[0].cpus,
                 time=wps[0].time,
+                qos=wps[0].qos(),
+                partition=wps[0].partition(),
                 job_name=self.job_name,
                 log_dir=self.log_dir,
                 error='%x_%A_%a.stderr',
