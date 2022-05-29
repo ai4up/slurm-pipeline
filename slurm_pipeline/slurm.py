@@ -50,8 +50,8 @@ def sbatch(script,
             qos='short',
             partition='standard',
             time='01:00:00',
-            error='%x_%A_%a.stderr',
-            output='%x_%A_%a.stdout',
+            error='%x_%j.stderr',
+            output='%x_%j.stdout',
             cpus=1,
             nodes=1,
             ntasks=1,
@@ -64,6 +64,9 @@ def sbatch(script,
             # TODO: add support for other sbatch options
             # *args,
             # **kwargs):
+
+    if (workfile or array) and sbatch_script is None:
+        raise SlurmException(f'Default sbatch script does not support workfile and array configuration. Please pass a custom sbatch script.')
 
     job_name = job_name or Path(script).stem
     sbatch_script = sbatch_script or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'slurm-templates', 'sbatch.sh')
