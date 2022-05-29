@@ -8,6 +8,7 @@ import jsonschema
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIG_PATH = os.path.join(SRC_DIR, '..', 'config.yml')
 
+DEFAULT_LOG_LEVEL = logging.INFO
 DEFAULT_POLL_INTERVAL = 30
 DEFAULT_EXP_BACKOFF_FACTOR = 4
 DEFAULT_MAX_RETRIES = 3
@@ -182,6 +183,7 @@ def _validate(config):
 
 def _set_defaults(config):
     config['properties'] = config.get('properties', {})
+    config['properties']['log_level'] = config['properties'].get('log_level', DEFAULT_LOG_LEVEL)
     config['properties']['left_over'] = config['properties'].get('left_over', DEFAULT_LEFT_OVER)
     config['properties']['max_retries'] = config['properties'].get('max_retries', DEFAULT_MAX_RETRIES)
     config['properties']['keep_work_dir'] = config['properties'].get('keep_work_dir', DEFAULT_KEEP_WORK_DIR)
