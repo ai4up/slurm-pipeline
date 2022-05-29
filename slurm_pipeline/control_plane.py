@@ -7,11 +7,12 @@ import logging
 import datetime
 from enum import Enum
 from pathlib import Path
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 import config
 import slurm
 from slurm import Status, SlurmException
+from slack_notifications import SlackHandler
 import slack_notifications as slack
 
 logger = logging.getLogger(__name__)
@@ -107,6 +108,7 @@ class Scheduler():
         self.workdir = os.path.join(self.log_dir, str(uuid.uuid4()))
         self.work_packages = []
         self.n_wps = None
+        self.slack_thread_id = None
 
         self._safely_mkdir(self.log_dir)
         self._safely_mkdir(self.workdir)
@@ -114,14 +116,16 @@ class Scheduler():
 
     def main(self):
         self.init_queue()
+        self.notify_start()
 
         while self.pending_work():
             self.schedule()
             self.wait()
             self.monitor()
+            self.notify_status()
 
         self.persist_results()
-        self.notify()
+        self.notify_done()
         self.cleanup()
 
 
@@ -200,16 +204,50 @@ class Scheduler():
         self._persist_work_status(WorkPackage.Status.FAILED)
 
 
-    def notify(self):
+    def notify_start(self):
         if self.slack_channel and self.slack_token:
-            duration =  str(datetime.timedelta(seconds=time.time() - self.start_time)).split('.')[0]
-            msg = f'⌛  Slurm {self.job_name} job finished after {duration} hours.\n'
-            msg += f'🌎  Processed countries: {", ".join(self.countries)}'
+            msg = '*PIPELINE JOB STARTED*\n'
+            msg += f'> ⌛  Slurm {self.job_name} job is being scheduled...\n'
+            msg += f'> 🌎  Configured countries: {", ".join(self.countries)}'
             msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
-            msg += f'🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.'
-            slack.send_message(msg, self.slack_channel, self.slack_token)
+            self.slack_thread_id = slack.send_message(msg, self.slack_channel, self.slack_token)
+
+            self._add_slack_logging_handler()
+
+            if len(self.failed_work()):
+                msg = f'🚨  {len(self.failed_work())} of {self.n_wps} work packages could not be initialized and are marked as failed.'
+                slack.send_message(msg, self.slack_channel, self.slack_token, self.slack_thread_id)
+
         else:
             logger.info('No notification hook configured. Consider adding a Slack channel and token to the config.yml.')
+
+
+    def notify_status(self):
+        if not self._every_n_polls(25):
+            return
+
+        if self.slack_channel and self.slack_token:
+            msg = f'*Status update after {self._strf_duration()}*\n'
+            msg += f'> TOTAL: {self.n_wps}\n'
+            msg += f'> PENDING: {len(self.pending_work())}\n'
+            msg += f'> SUCCEEDED: {len(self.succeeded_work())}\n'
+            msg += f'> FAILED: {len(self.failed_work())}\n'
+
+            failure_causes = [wp.slurm_status.name for wp in self.failed_work() if wp.slurm_status]
+            for k, v in Counter(failure_causes).most_common():
+                msg += f'>   > slurm {k.lower()}: {v}\n'
+
+            slack.send_message(msg, self.slack_channel, self.slack_token, self.slack_thread_id)
+
+
+    def notify_done(self):
+        if self.slack_channel and self.slack_token:
+            msg = '*PIPELINE JOB FINISHED*\n'
+            msg += f'> 🏁  Slurm {self.job_name} job finished after {self._strf_duration()} hours.\n'
+            msg += f'> 🌎  Processed countries: {", ".join(self.countries)}'
+            msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
+            msg += f'> 🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.'
+            slack.send_message(msg, self.slack_channel, self.slack_token)
 
 
     def cleanup(self):
@@ -337,7 +375,7 @@ class Scheduler():
                 wp.stderr_log = os.path.join(self.log_dir, f'{self.job_name}_{wp.job_id}.stderr')
 
         except SlurmException as e:
-            logger.error(f'Failed to submit Slurm job array: {e}')
+            logger.critical(f'Failed to submit Slurm job array: {e}')
             for wp in wps:
                 self._decommission(wp, str(e))
 
@@ -374,8 +412,28 @@ class Scheduler():
         return paths
 
 
+    def _add_slack_logging_handler(self):
+        sh = SlackHandler(self.slack_channel, self.slack_token, self.slack_thread_id)
+        sh.setLevel(logging.CRITICAL)
+        logger.addHandler(sh)
+
+
+    def _every_n_polls(self, n):
+        base = self.poll_interval
+        rounded_duration = base * round(self._duration() / base)
+        return rounded_duration % (base * n) == 0
+
+
     def _safely_mkdir(self, path):
         Path(path).mkdir(parents=True, exist_ok=True)
+
+
+    def _strf_duration(self):
+        return str(datetime.timedelta(seconds=self._duration())).split('.')[0]
+
+
+    def _duration(self):
+        return time.time() - self.start_time
 
 
     def _slurm_chunks(self, wps):
@@ -392,4 +450,3 @@ class Scheduler():
 
         logger.debug(f'Work was grouped in {len(list(groups.values()))} groups with {list(groups.keys())} cpu & timeout configurations respectively.')
         yield from groups.values()
-

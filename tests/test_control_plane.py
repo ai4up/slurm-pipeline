@@ -42,7 +42,7 @@ def _mock_get_work_paths(*args):
     {'cpus': 2, 'time': '02:00:00'}])
 @patch("slurm_pipeline.control_plane.slurm.status", side_effect=[
     control_plane.slurm.Status.COMPLETED,
-    control_plane.slurm.Status.FAILED,
+    control_plane.slurm.Status.TIMEOUT,
     control_plane.slurm.Status.FAILED])
 @patch("slurm_pipeline.control_plane.slurm.sbatch_array")
 def test_main(sbatch_mock, *args):
@@ -79,3 +79,17 @@ def test_groupby_resource_allocation():
     for group in grouped_wps:
         assert all(wp.time == group[0].time for wp in group)
         assert all(wp.cpus == group[0].cpus for wp in group)
+
+
+@patch.object(control_plane.Scheduler, '_duration', return_value=100)
+def test_every_n_polls(mock):
+    scheduler = control_plane.Scheduler(_test_job_config())
+
+    scheduler.poll_interval = 4
+    assert scheduler._every_n_polls(n=25) == True
+
+    scheduler.poll_interval = 9
+    assert scheduler._every_n_polls(n=11) == True
+
+    scheduler.poll_interval = 9
+    assert scheduler._every_n_polls(n=12) == False
