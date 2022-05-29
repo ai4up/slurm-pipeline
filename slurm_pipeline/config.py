@@ -207,4 +207,4 @@ def _set_defaults(config):
 
 def _merge_defaults(config):
     for job_conf in config['jobs']:
-        job_conf['properties'] = {**config['properties'], **job_conf['properties']}
+        job_conf['properties'] = {**config['properties'], **job_conf.get('properties', {})}
