@@ -16,6 +16,7 @@ DEFAULT_KEEP_WORK_DIR = False
 DEFAULT_LEFT_OVER = None
 DEFAULT_SLACK_CHANNEL = None
 DEFAULT_SLACK_TOKEN = None
+DEFAULT_ACCOUNT = None
 
 SCHEMA = """
 type: object
@@ -70,6 +71,10 @@ properties:
                 properties:
                     type: object
                     properties:
+                        conda_env:
+                            type: string
+                        account:
+                            type: string
                         log_level:
                             type: string
                             enum:
@@ -100,7 +105,12 @@ properties:
                                     type: string
     properties:
         type: object
+        required: [conda_env]
         properties:
+            conda_env:
+                type: string
+            account:
+                type: string
             log_level:
                 type: string
                 enum:
@@ -183,6 +193,7 @@ def _validate(config):
 
 def _set_defaults(config):
     config['properties'] = config.get('properties', {})
+    config['properties']['account'] = config['properties'].get('account', DEFAULT_ACCOUNT)
     config['properties']['log_level'] = config['properties'].get('log_level', DEFAULT_LOG_LEVEL)
     config['properties']['left_over'] = config['properties'].get('left_over', DEFAULT_LEFT_OVER)
     config['properties']['max_retries'] = config['properties'].get('max_retries', DEFAULT_MAX_RETRIES)

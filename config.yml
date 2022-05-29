@@ -43,6 +43,8 @@ jobs:
           time: "24:00:00"
 
 properties:
+  conda_env: "/home/nikolami/.conda/envs/ox112"
+  account: eubucco
   log_level: WARN
   exp_backoff_factor: 4
   max_retries: 3

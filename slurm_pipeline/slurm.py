@@ -46,7 +46,7 @@ ACTIVE = [Status.PENDING, Status.RUNNING, Status.CONFIGURING, Status.COMPLETING,
 
 def sbatch(script,
             log_dir,
-            conda_env='/home/nikolami/.conda/envs/ox112',
+            conda_env,
             qos='short',
             partition='standard',
             time='01:00:00',
@@ -56,7 +56,7 @@ def sbatch(script,
             nodes=1,
             ntasks=1,
             workfile='',
-            account='eubucco',
+            account=None,
             array=None,
             job_name=None,
             mem=None,
@@ -79,7 +79,6 @@ def sbatch(script,
     options += f' --qos={qos}'
     options += f' --time="{time}"'
     options += f' --nodes={nodes}'
-    options += f' --account={account}'
     options += f' --error="{error}"'
     options += f' --output="{output}"'
     options += f' --chdir="{log_dir}"'
@@ -91,6 +90,8 @@ def sbatch(script,
         options += f' --mem={mem}'
     if array:
         options += f' --array={array}'
+    if account:
+        options += f' --account={account}'
 
     cmd = f'sbatch --parsable {options} "{sbatch_script}" "{script}" "{conda_env}" {workfile}'
     logger.debug(f'Submitting Slurm job with cmd: {cmd}')

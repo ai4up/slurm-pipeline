@@ -93,6 +93,8 @@ class Scheduler():
         self.data_dir = job_config['data_dir']
         self.countries = job_config['countries']
 
+        self.conda_env = job_config['properties']['conda_env']
+        self.account = job_config['properties']['account']
         self.left_over = job_config['properties']['left_over']
         self.keep_work_dir = job_config['properties']['keep_work_dir']
         self.max_retries = job_config['properties']['max_retries']
@@ -316,12 +318,14 @@ class Scheduler():
                 workfile,
                 array=array_conf,
                 script=self.script,
+                conda_env=self.conda_env,
                 cpus=wps[0].cpus,
                 time=wps[0].time,
                 qos=wps[0].qos(),
                 partition=wps[0].partition(),
                 job_name=self.job_name,
                 log_dir=self.log_dir,
+                account=self.account,
                 error='%x_%A_%a.stderr',
                 output='%x_%A_%a.stdout'
                 )
