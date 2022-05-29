@@ -105,7 +105,6 @@ properties:
                                     type: string
     properties:
         type: object
-        required: [conda_env]
         properties:
             conda_env:
                 type: string
@@ -189,6 +188,14 @@ def _load_config_yaml():
 
 def _validate(config):
     jsonschema.validate(config, yaml.safe_load(SCHEMA))
+    _validate_property_conda_env(config)
+
+
+def _validate_property_conda_env(config):
+    if not config.get('properties', {}).get('conda_env'):
+        for job_conf in config['jobs']:
+            if not job_conf.get('properties', {}).get('conda_env'):
+                raise UsageError(f"The conda_env must be specified either in the global properties section or within each jobs' property section.")
 
 
 def _set_defaults(config):

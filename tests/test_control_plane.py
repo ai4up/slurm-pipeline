@@ -7,16 +7,14 @@ from unittest.mock import patch
 import yaml
 
 from slurm_pipeline import control_plane
+from slurm_pipeline import config
 
 
 def _test_job_config():
     test_dir = path.dirname(path.realpath(__file__))
-    config_path = path.join(test_dir, 'test_config.yml')
+    config.CONFIG_PATH = path.join(test_dir, 'test_config.yml')
 
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
-
-    return config['jobs'][0]
+    return config.load()['jobs'][0]
 
 
 
