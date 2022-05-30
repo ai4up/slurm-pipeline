@@ -26,10 +26,13 @@ properties:
     properties:
         conda_env:
             type: string
+            description: Conda environment.
         account:
             type: string
+            description: Slurm account.
         log_level:
             type: string
+            description: Log level.
             enum:
             - DEBUG
             - INFO
@@ -37,17 +40,23 @@ properties:
             - ERROR
         left_over:
             type: string
+            description: Run job only for cities, which have not been processed yet. Specify type / suffix of job output files (e.g. bld_fts).
         custom_workfile:
             type: string
+            description: Custom workfile to be used instead of the default "paths_<country>.txt" file.
         keep_work_dir:
             type: boolean
+            description: Keep the work directory after the job has finished.
         exp_backoff_factor:
             type: integer
+            description: Exponential backoff factor for retries.
         max_retries:
             type: integer
+            description: Maximum number of retries.
             minimum: 0
         poll_interval:
             type: integer
+            description: Poll interval in seconds.
             minimum: 10
             maximum: 3600
         slack:
@@ -56,8 +65,10 @@ properties:
             properties:
                 channel:
                     type: string
+                    description: Slack channel name or ID.
                 token:
                     type: string
+                    description: Slack API token.
 """
 
 SCHEMA = f"""
@@ -72,20 +83,26 @@ properties:
             properties:
                 name:
                     type: string
+                    description: Descriptive name of the job.
                 script:
                     type: string
+                    description: Path to the Python script to run.
                 data_dir:
                     type: string
+                    description: Path to the data directory.
                 log_dir:
                     type: string
+                    description: Path to store the logs.
                 resources:
                     type: object
                     required: [cpus, time]
                     properties:
                         cpus:
                             type: integer
+                            description: Number of CPUs to request (8GB of memory per CPU).
                         time:
                             type: string
+                            description: "Time limit per work package (format: days-hours:min:sec)."
                 special_cases:
                     type: array
                     items:
@@ -93,22 +110,28 @@ properties:
                         properties:
                             name:
                                 type: string
+                                description: Name of the special case (documenting nature only).
                             resources:
                                 type: object
                                 properties:
                                     cpus:
                                         type: integer
+                                        description: Number of CPUs to request (8GB of memory per CPU).
                                     time:
                                         type: string
+                                        description: "Time limit per work package (format: days-hours:min:sec)."
                             file:
                                 type: object
                                 required: [type]
                                 properties:
                                     type:
                                         type: string
+                                        description: Type / suffix of file to consider for special case assessment.
                                     file_size_min:
                                         type: integer
+                                        description: Minimum file size.
                                     file_size_max:
+                                        description: Maximum file size.
                                         type: integer
 
                 {textwrap.indent(SCHEMA_PROPERTIES, ' ' * 16)}
