@@ -3,7 +3,6 @@ from os import path
 import yaml
 import pytest
 from unittest.mock import patch
-from jsonschema.exceptions import ValidationError
 
 from slurm_pipeline import config
 from slurm_pipeline.config import UsageError
@@ -29,7 +28,7 @@ def test_load_properties_validation(mock):
 
 @patch('slurm_pipeline.config._load_config_yaml', return_value=_test_config({'properties': {'slack': {}}}))
 def test_load_schema_validation(mock):
-    with pytest.raises(ValidationError) as exc:
+    with pytest.raises(UsageError) as exc:
         config.load()
 
     assert "'channel' is a required property" in str(exc.value)

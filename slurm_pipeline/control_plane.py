@@ -220,7 +220,7 @@ class Scheduler():
                 slack.send_message(msg, self.slack_channel, self.slack_token, self.slack_thread_id)
 
         else:
-            logger.info('No notification hook configured. Consider adding a Slack channel and token to the config.yml.')
+            logger.info(f'No notification hook configured. Consider adding a Slack channel and token to the {config.CONFIG_FILE}.')
 
 
     def notify_status(self):

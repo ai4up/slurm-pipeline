@@ -7,7 +7,8 @@ import yaml
 import jsonschema
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
-CONFIG_PATH = os.path.join(SRC_DIR, '..', 'config.yml')
+CONFIG_FILE = 'config.yml'
+CONFIG_PATH = os.path.join(SRC_DIR, '..', CONFIG_FILE)
 
 DEFAULT_LOG_LEVEL = logging.INFO
 DEFAULT_POLL_INTERVAL = 30
@@ -186,7 +187,11 @@ def _load_config_yaml():
 
 
 def _validate(config):
-    jsonschema.validate(config, yaml.safe_load(SCHEMA))
+    try:
+        jsonschema.validate(config, yaml.safe_load(SCHEMA))
+    except jsonschema.exceptions.ValidationError as e:
+        raise UsageError(f'Error validating {CONFIG_FILE}:\n{e.message} for {e.json_path}.')
+
     _validate_property_conda_env(config)
 
 
