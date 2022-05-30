@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import textwrap
 
 import yaml
 import jsonschema
@@ -19,7 +20,47 @@ DEFAULT_SLACK_CHANNEL = None
 DEFAULT_SLACK_TOKEN = None
 DEFAULT_ACCOUNT = None
 
-SCHEMA = """
+SCHEMA_PROPERTIES = """
+properties:
+    type: object
+    properties:
+        conda_env:
+            type: string
+        account:
+            type: string
+        log_level:
+            type: string
+            enum:
+            - DEBUG
+            - INFO
+            - WARN
+            - ERROR
+        left_over:
+            type: string
+        custom_workfile:
+            type: string
+        keep_work_dir:
+            type: boolean
+        exp_backoff_factor:
+            type: integer
+        max_retries:
+            type: integer
+            minimum: 0
+        poll_interval:
+            type: integer
+            minimum: 10
+            maximum: 3600
+        slack:
+            type: object
+            required: [channel, token]
+            properties:
+                channel:
+                    type: string
+                token:
+                    type: string
+"""
+
+SCHEMA = f"""
 type: object
 properties:
 
@@ -69,80 +110,10 @@ properties:
                                         type: integer
                                     file_size_max:
                                         type: integer
-                properties:
-                    type: object
-                    properties:
-                        conda_env:
-                            type: string
-                        account:
-                            type: string
-                        log_level:
-                            type: string
-                            enum:
-                            - DEBUG
-                            - INFO
-                            - WARN
-                            - ERROR
-                        left_over:
-                            type: string
-                        custom_workfile:
-                            type: string
-                        keep_work_dir:
-                            type: boolean
-                        exp_backoff_factor:
-                            type: integer
-                        max_retries:
-                            type: integer
-                            minimum: 0
-                        poll_interval:
-                            type: integer
-                            minimum: 10
-                            maximum: 3600
-                        slack:
-                            type: object
-                            required: [channel, token]
-                            properties:
-                                channel:
-                                    type: string
-                                token:
-                                    type: string
-    properties:
-        type: object
-        properties:
-            conda_env:
-                type: string
-            account:
-                type: string
-            log_level:
-                type: string
-                enum:
-                - DEBUG
-                - INFO
-                - WARN
-                - ERROR
-            left_over:
-                type: string
-            custom_workfile:
-                type: string
-            keep_work_dir:
-                type: boolean
-            exp_backoff_factor:
-                type: integer
-            max_retries:
-                type: integer
-                minimum: 0
-            poll_interval:
-                type: integer
-                minimum: 10
-                maximum: 3600
-            slack:
-                type: object
-                required: [channel, token]
-                properties:
-                    channel:
-                        type: string
-                    token:
-                        type: string
+
+                {textwrap.indent(SCHEMA_PROPERTIES, ' ' * 16)}
+
+    {textwrap.indent(SCHEMA_PROPERTIES, ' ' * 4)}
 """
 
 logger = logging.getLogger(__name__)
