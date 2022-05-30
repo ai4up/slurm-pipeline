@@ -40,6 +40,7 @@ class WorkPackage():
     @staticmethod
     def init_failed(path, error_msg):
         wp = WorkPackage(path, cpus=None, time=None)
+        # TODO: introduce INIT_FAILED (& ABORTED) status in order to differentiate between runtime and init failures when assessing if failure threshold has been reached
         wp.status = WorkPackage.Status.FAILED
         wp.error_msg = error_msg
         return wp
@@ -101,6 +102,8 @@ class Scheduler():
         self.keep_work_dir = job_config['properties']['keep_work_dir']
         self.max_retries = job_config['properties']['max_retries']
         self.poll_interval = job_config['properties']['poll_interval']
+        self.failure_threshold = job_config['properties']['failure_threshold']
+        self.failure_threshold_activation = job_config['properties']['failure_threshold_activation']
         self.slack_channel = job_config['properties']['slack']['channel']
         self.slack_token = job_config['properties']['slack']['token']
         self.exp_backoff_factor = job_config['properties']['exp_backoff_factor']
@@ -192,6 +195,10 @@ class Scheduler():
 
             else:
                 self._process_unknown_status(wp)
+
+        if self._failure_threshold_reached():
+            logger.critical(f'Failure threshold of {self.failure_threshold} reached. Cancelling all Slurm jobs and aborting the pipeline run...')
+            self._panic()
 
 
     def wait(self):
@@ -333,6 +340,19 @@ class Scheduler():
         self._persist_work_status()
 
 
+    def _panic(self):
+        for wp in self.queued_work():
+            wp.error_msg = 'Panic! All work packages in queue were canceled.'
+            wp.status = WorkPackage.Status.FAILED
+
+        for wp in self.scheduled_work():
+            wp.error_msg = 'Panic! All running jobs were canceled.'
+            wp.status = WorkPackage.Status.FAILED
+            slurm.cancel(wp.job_id)
+
+        self._persist_work_status()
+
+
     def _requeue_work(self, wp):
         if wp.n_tries >= self.max_retries:
             logger.error(f'Work package for {wp.path} failed to schedule after {self.max_retries} retries. Removing from queue.')
@@ -426,6 +446,15 @@ class Scheduler():
         sh = SlackHandler(self.slack_channel, self.slack_token, self.slack_thread_id)
         sh.setLevel(logging.CRITICAL)
         logger.addHandler(sh)
+
+
+    def _failure_threshold_reached(self):
+        n_processed_wps = len(self.failed_work()) + len(self.succeeded_work())
+        if n_processed_wps < self.failure_threshold_activation:
+            return False
+
+        failure_rate = len(self.failed_work()) / n_processed_wps
+        return failure_rate >= self.failure_threshold
 
 
     def _every_n_polls(self, n):

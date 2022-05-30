@@ -99,7 +99,7 @@ def sbatch(script,
     p = subprocess.run(cmd, capture_output=True, shell=True)
 
     if p.returncode > 0:
-        raise SlurmException(f'Error running sbatch cmd {cmd}:\n{p.stderr.decode("UTF-8")}')
+        raise SlurmException(f'Error running Slurm cmd {cmd}:\n{p.stderr.decode("UTF-8")}')
 
     job_id = p.stdout.decode('UTF-8').strip()
     return job_id
@@ -117,11 +117,11 @@ def sbatch_array(workfile, array=None, **kwargs):
 def status(job_id):
     logger.debug(f'Getting Slurm status for job {job_id}...')
 
-    cmd = f"sacct --job={job_id} --format=state --parsable2 --noheader"
+    cmd = f'sacct --job={job_id} --format=state --parsable2 --noheader'
     p = subprocess.run(cmd, capture_output=True, shell=True)
 
     if p.returncode > 0:
-        raise SlurmException(f'Error running sacct cmd {cmd}:\n{p.stderr.decode("UTF-8")}')
+        raise SlurmException(f'Error running Slurm cmd {cmd}:\n{p.stderr.decode("UTF-8")}')
 
     try:
         s = p.stdout.decode('UTF-8').splitlines()[0].strip()
@@ -133,6 +133,16 @@ def status(job_id):
         return Status(s)
     except ValueError:
         return Status.UNKNOWN
+
+
+def cancel(job_id):
+    logger.debug(f'Cancelling Slurm job {job_id}...')
+
+    cmd = f'scancel {job_id}'
+    p = subprocess.run(cmd, capture_output=True, shell=True)
+
+    if p.returncode > 0:
+        raise SlurmException(f'Error running Slurm cmd {cmd}:\n{p.stderr.decode("UTF-8")}')
 
 
 def parse_time(time_str):

@@ -14,6 +14,8 @@ DEFAULT_LOG_LEVEL = logging.INFO
 DEFAULT_POLL_INTERVAL = 30
 DEFAULT_EXP_BACKOFF_FACTOR = 4
 DEFAULT_MAX_RETRIES = 3
+DEFAULT_FAILURE_THRESHOLD = 0.25
+DEFAULT_FAILURE_THRESHOLD_ACTIVATION = 50
 DEFAULT_KEEP_WORK_DIR = False
 DEFAULT_LEFT_OVER = None
 DEFAULT_CUSTOM_WORKFILE = None
@@ -41,7 +43,7 @@ properties:
             - ERROR
         left_over:
             type: string
-            description: Run job only for cities, which have not been processed yet. Specify type / suffix of job output files (e.g. bld_fts).
+            description: Run job only for work packages, which have not been processed yet. Specify type / suffix of job output files (e.g. bld_fts).
         custom_workfile:
             type: string
             description: Custom workfile to be used instead of the default "paths_<country>.txt" file.
@@ -60,6 +62,15 @@ properties:
             description: Poll interval in seconds.
             minimum: 10
             maximum: 3600
+        failure_threshold:
+            type: number
+            description: Relative threshold of processed work packages after which all Slurm jobs are canceled and the pipeline run is aborted.
+            minimum: 0
+            maximum: 1
+        failure_threshold_activation:
+            type: integer
+            minimum: 1
+            description: Number of initial work packages to be processed before the failure threshold is evaluated for the first time.
         slack:
             type: object
             required: [channel, token]
@@ -212,6 +223,8 @@ def _set_defaults(config):
     config['properties']['keep_work_dir'] = config['properties'].get('keep_work_dir', DEFAULT_KEEP_WORK_DIR)
     config['properties']['poll_interval'] = config['properties'].get('poll_interval', DEFAULT_POLL_INTERVAL)
     config['properties']['exp_backoff_factor'] = config['properties'].get('exp_backoff_factor', DEFAULT_EXP_BACKOFF_FACTOR)
+    config['properties']['failure_threshold'] = config['properties'].get('failure_threshold', DEFAULT_FAILURE_THRESHOLD)
+    config['properties']['failure_threshold_activation'] = config['properties'].get('failure_threshold_activation', DEFAULT_FAILURE_THRESHOLD_ACTIVATION)
     config['properties']['slack'] = config['properties'].get('slack', {})
     config['properties']['slack']['channel'] = config['properties']['slack'].get('channel', DEFAULT_SLACK_CHANNEL)
     config['properties']['slack']['token'] = config['properties']['slack'].get('token', DEFAULT_SLACK_TOKEN)
