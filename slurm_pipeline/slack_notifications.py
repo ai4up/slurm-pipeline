@@ -16,9 +16,19 @@ class SlackHandler(StreamHandler):
         self.slack_thread_id = slack_thread_id
 
 
+    @staticmethod
+    def add_to_logger(logger, channel, token, thread_id=None, log_lvl=logging.CRITICAL):
+        sh = SlackHandler(channel, token, thread_id)
+        sh.setLevel(log_lvl)
+        logger.addHandler(sh)
+
+
     def emit(self, record):
         msg = self.format(record)
-        send_message(msg, self.slack_channel, self.slack_token, self.slack_thread_id)
+        try:
+            send_message(msg, self.slack_channel, self.slack_token, self.slack_thread_id)
+        except Exception as e:
+            _handle_exception(f'{msg} - {e}')
 
 
 def send_message(message, channel, token, thread_id=None):
@@ -32,4 +42,11 @@ def send_message(message, channel, token, thread_id=None):
         return response['ts']
 
     except SlackApiError as e:
-        logger.error(f'Error occurred sending slack message to {channel}: {e}')
+        _handle_exception(f'Error occurred sending slack message to {channel}: {e}')
+
+
+def _handle_exception(msg):
+    old_handlers = logger.handlers[:]
+    logger.handlers = [h for h in logger.handlers if not isinstance(h, SlackHandler)]
+    logger.error(f'Error occurred sending slack message: {msg}')
+    logger.handlers = old_handlers

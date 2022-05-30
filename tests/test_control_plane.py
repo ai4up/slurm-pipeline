@@ -4,7 +4,6 @@ import json
 from os import path
 from unittest.mock import patch
 
-import yaml
 
 from slurm_pipeline import control_plane
 from slurm_pipeline import config

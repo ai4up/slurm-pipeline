@@ -121,6 +121,7 @@ class Scheduler():
     def main(self):
         self.init_queue()
         self.notify_start()
+        self.init_logger()
 
         while self.pending_work():
             self.schedule()
@@ -131,6 +132,14 @@ class Scheduler():
         self.persist_results()
         self.notify_done()
         self.cleanup()
+
+
+    def init_logger(self):
+        if self.slack_channel and self.slack_token:
+            if self.slack_thread_id is None:
+                logger.warning('No Slack thread id specified. Slack notifications will be send to channel directly.')
+
+            SlackHandler.add_to_logger(logger, self.slack_channel, self.slack_token, self.slack_thread_id)
 
 
     def init_queue(self):
@@ -218,44 +227,38 @@ class Scheduler():
             msg += f'> ⌛  Slurm {self.job_name} job is being scheduled...\n'
             msg += f'> 🌎  Configured countries: {", ".join(self.countries)}'
             msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
-            self.slack_thread_id = slack.send_message(msg, self.slack_channel, self.slack_token)
+            self._notify(msg, thread=False)
 
-            self._add_slack_logging_handler()
-
-            if len(self.failed_work()):
+            if len(self.failed_work()) > 0:
                 msg = f'🚨  {len(self.failed_work())} of {self.n_wps} work packages could not be initialized and are marked as failed.'
-                slack.send_message(msg, self.slack_channel, self.slack_token, self.slack_thread_id)
-
-        else:
-            logger.info(f'No notification hook configured. Consider adding a Slack channel and token to the {config.CONFIG_FILE}.')
+                self._notify(msg)
 
 
     def notify_status(self):
         if not self._every_n_polls(25):
             return
 
-        if self.slack_channel and self.slack_token:
-            msg = f'*Status update after {self._strf_duration()}*\n'
-            msg += f'> TOTAL: {self.n_wps}\n'
-            msg += f'> PENDING: {len(self.pending_work())}\n'
-            msg += f'> SUCCEEDED: {len(self.succeeded_work())}\n'
-            msg += f'> FAILED: {len(self.failed_work())}\n'
+        msg = f'*Status update after {self._strf_duration()}*\n'
+        msg += f'> TOTAL: {self.n_wps}\n'
+        msg += f'> PENDING: {len(self.pending_work())}\n'
+        msg += f'> SUCCEEDED: {len(self.succeeded_work())}\n'
+        msg += f'> FAILED: {len(self.failed_work())}\n'
 
-            failure_causes = [wp.slurm_status.name for wp in self.failed_work() if wp.slurm_status]
-            for k, v in Counter(failure_causes).most_common():
-                msg += f'>   > slurm {k.lower()}: {v}\n'
+        failure_causes = [wp.slurm_status.name for wp in self.failed_work() if wp.slurm_status]
+        for k, v in Counter(failure_causes).most_common():
+            msg += f'>   > slurm {k.lower()}: {v}\n'
 
-            slack.send_message(msg, self.slack_channel, self.slack_token, self.slack_thread_id)
+        self._notify(msg)
 
 
     def notify_done(self):
-        if self.slack_channel and self.slack_token:
-            msg = '*PIPELINE JOB FINISHED*\n'
-            msg += f'> 🏁  Slurm {self.job_name} job finished after {self._strf_duration()} hours.\n'
-            msg += f'> 🌎  Processed countries: {", ".join(self.countries)}'
-            msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
-            msg += f'> 🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.'
-            slack.send_message(msg, self.slack_channel, self.slack_token)
+        msg = '*PIPELINE JOB FINISHED*\n'
+        msg += f'> 🏁  Slurm {self.job_name} job finished after {self._strf_duration()} hours.\n'
+        msg += f'> 🌎  Processed countries: {", ".join(self.countries)}'
+        msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
+        msg += f'> 🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.'
+
+        self._notify(msg, thread=False)
 
 
     def cleanup(self):
@@ -442,10 +445,16 @@ class Scheduler():
         return paths
 
 
-    def _add_slack_logging_handler(self):
-        sh = SlackHandler(self.slack_channel, self.slack_token, self.slack_thread_id)
-        sh.setLevel(logging.CRITICAL)
-        logger.addHandler(sh)
+    def _notify(self, msg, thread=True):
+        if self.slack_channel and self.slack_token:
+            try:
+                thread_id = self.slack_thread_id if thread else None
+                self.slack_thread_id = slack.send_message(msg, self.slack_channel, self.slack_token, thread_id)
+            except Exception as e:
+                logger.error(f'Failed to send Slack message: {e}')
+        else:
+            logger.info(f'No notification hook configured. Cannot send message {msg}.')
+            logger.info(f'Consider adding a Slack channel and token to the {config.CONFIG_FILE}.')
 
 
     def _failure_threshold_reached(self):
