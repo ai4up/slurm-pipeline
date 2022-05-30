@@ -97,6 +97,7 @@ class Scheduler():
         self.conda_env = job_config['properties']['conda_env']
         self.account = job_config['properties']['account']
         self.left_over = job_config['properties']['left_over']
+        self.custom_workfile = job_config['properties']['custom_workfile']
         self.keep_work_dir = job_config['properties']['keep_work_dir']
         self.max_retries = job_config['properties']['max_retries']
         self.poll_interval = job_config['properties']['poll_interval']
@@ -132,7 +133,7 @@ class Scheduler():
     def init_queue(self):
         logger.info('Initialized queue...')
         for country in self.countries:
-            for path in self._get_work_paths(country, self.data_dir, self.left_over):
+            for path in self._get_work_paths(country):
                 try:
                     resource_conf = config.get_resource_config(path, self.job_config)
                     wp = WorkPackage(path, **resource_conf)
@@ -401,13 +402,22 @@ class Scheduler():
             json.dump(wps, f, sort_keys=True, indent=4, ensure_ascii=False)
 
 
-    def _get_work_paths(self, country_name, data_dir, left_over=''):
+    def _get_work_paths(self, country_name):
 
-        file_prefix = f'failed_{left_over}_' if left_over else ''
-        file_path = os.path.join(data_dir, country_name, 'paths_' + file_prefix + country_name + '.txt')
+        filename = self.custom_workfile or f'paths_{country_name}.txt'
+        file_path = os.path.join(self.data_dir, country_name, filename)
 
-        with open(file_path) as f:
-            paths = [line.rstrip() for line in f]
+        try:
+            with open(file_path) as f:
+                paths = [line.rstrip() for line in f]
+        except FileNotFoundError:
+            logger.critical(f'Could not find workfile {file_path} for country {country_name}.')
+            return []
+
+        if self.left_over:
+            unprocessed_paths = [path for path in paths if not os.path.isfile(f'{path}_{self.left_over}.csv')]
+            logger.info(f'{len(unprocessed_paths)} of {len(paths)} *_{self.left_over}.csv paths left over from previous run.')
+            return unprocessed_paths
 
         return paths
 

@@ -14,6 +14,7 @@ DEFAULT_EXP_BACKOFF_FACTOR = 4
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_KEEP_WORK_DIR = False
 DEFAULT_LEFT_OVER = None
+DEFAULT_CUSTOM_WORKFILE = None
 DEFAULT_SLACK_CHANNEL = None
 DEFAULT_SLACK_TOKEN = None
 DEFAULT_ACCOUNT = None
@@ -84,6 +85,8 @@ properties:
                             - ERROR
                         left_over:
                             type: string
+                        custom_workfile:
+                            type: string
                         keep_work_dir:
                             type: boolean
                         exp_backoff_factor:
@@ -118,6 +121,8 @@ properties:
                 - WARN
                 - ERROR
             left_over:
+                type: string
+            custom_workfile:
                 type: string
             keep_work_dir:
                 type: boolean
@@ -203,6 +208,7 @@ def _set_defaults(config):
     config['properties']['account'] = config['properties'].get('account', DEFAULT_ACCOUNT)
     config['properties']['log_level'] = config['properties'].get('log_level', DEFAULT_LOG_LEVEL)
     config['properties']['left_over'] = config['properties'].get('left_over', DEFAULT_LEFT_OVER)
+    config['properties']['custom_workfile'] = config['properties'].get('custom_workfile', DEFAULT_CUSTOM_WORKFILE)
     config['properties']['max_retries'] = config['properties'].get('max_retries', DEFAULT_MAX_RETRIES)
     config['properties']['keep_work_dir'] = config['properties'].get('keep_work_dir', DEFAULT_KEEP_WORK_DIR)
     config['properties']['poll_interval'] = config['properties'].get('poll_interval', DEFAULT_POLL_INTERVAL)
