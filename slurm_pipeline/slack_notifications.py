@@ -42,11 +42,25 @@ def send_message(message, channel, token, thread_id=None):
         return response['ts']
 
     except SlackApiError as e:
-        _handle_exception(f'Error occurred sending slack message to {channel}: {e}')
+        _handle_exception(f'Error occurred sending slack message to channel {channel}: {e}')
+
+
+def react(emoji, thread_id, channel, token):
+    try:
+        client = WebClient(token)
+        response = client.reactions_add(
+            channel=channel,
+            name=emoji,
+            timestamp=thread_id
+        )
+        return response['ts']
+
+    except SlackApiError as e:
+        _handle_exception(f'Error occurred reacting to slack message in channcel {channel}: {e}')
 
 
 def _handle_exception(msg):
     old_handlers = logger.handlers[:]
     logger.handlers = [h for h in logger.handlers if not isinstance(h, SlackHandler)]
-    logger.error(f'Error occurred sending slack message: {msg}')
+    logger.error(msg)
     logger.handlers = old_handlers
