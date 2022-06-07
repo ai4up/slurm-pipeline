@@ -115,6 +115,9 @@ properties:
                         time:
                             type: string
                             description: "Time limit per work package (format: days-hours:min:sec)."
+                        partition:
+                            type: string
+                            description: Slurm partition.
                 special_cases:
                     type: array
                     items:
@@ -132,6 +135,9 @@ properties:
                                     time:
                                         type: string
                                         description: "Time limit per work package (format: days-hours:min:sec)."
+                                    partition:
+                                        type: string
+                                        description: Slurm partition.
                             file:
                                 type: object
                                 required: [type]

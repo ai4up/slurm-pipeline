@@ -22,10 +22,12 @@ class WorkPackage():
 
     Status = Enum('STATUS', 'PENDING FAILED SUCCEEDED')
 
-    def __init__(self, path, cpus, time):
+    def __init__(self, path, cpus, time, partition=None):
         self.path = path
         self.cpus = cpus
         self.time = time
+        self.qos = self._determine_qos()
+        self.partition = partition or self._determine_partition()
         self.n_tries = 0
         self.name = Path(path).stem
         self.status = WorkPackage.Status.PENDING
@@ -51,6 +53,8 @@ class WorkPackage():
             'path': self.path,
             'cpus': self.cpus,
             'time': self.time,
+            'partition': self.partition,
+            'qos': self.qos,
             'name': self.name,
             'status': self.status.name,
             'slurm_status': self.slurm_status.name if self.slurm_status else None,
@@ -68,21 +72,21 @@ class WorkPackage():
         return round(timedelta.total_seconds() / 60)
 
 
-    def partition(self):
+    def to_json(self):
+        return json.dumps(self.encode(), sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
+
+
+    def _determine_partition(self):
         return 'standard' if self.cpus <= 16 else 'broadwell'
 
 
-    def qos(self):
+    def _determine_qos(self):
         if self.minutes() <= 24 * 60:
             return 'short'
         elif self.minutes() <= 24 * 60 * 7:
             return 'medium'
         else:
             return 'long'
-
-
-    def to_json(self):
-        return json.dumps(self.encode(), sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
 
 
 class Scheduler():
@@ -383,8 +387,8 @@ class Scheduler():
                 conda_env=self.conda_env,
                 cpus=wps[0].cpus,
                 time=wps[0].time,
-                qos=wps[0].qos(),
-                partition=wps[0].partition(),
+                qos=wps[0].qos,
+                partition=wps[0].partition,
                 job_name=self.job_name,
                 log_dir=self.log_dir,
                 account=self.account,
