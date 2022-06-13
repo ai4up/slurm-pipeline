@@ -12,8 +12,8 @@ from collections import defaultdict, Counter
 import config
 import slurm
 from slurm import Status, SlurmException
-from slack_notifications import SlackHandler
-import slack_notifications as slack
+from slurm_pipeline.cluster_utils.slack_notifications import SlackLoggingHandler
+import slurm_pipeline.cluster_utils.slack_notifications as slack
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +143,7 @@ class Scheduler():
             if self.slack_thread_id is None:
                 logger.warning('No Slack thread id specified. Slack notifications will be send to channel directly.')
 
-            SlackHandler.add_to_logger(logger, self.slack_channel, self.slack_token, self.slack_thread_id)
+            SlackLoggingHandler.add_to_logger(logger, self.slack_channel, self.slack_token, self.slack_thread_id)
 
 
     def init_queue(self):

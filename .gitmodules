@@ -1,0 +1,3 @@
+[submodule "cluster-utils"]
+	path = cluster-utils
+	url = git@github.com:ai4up/cluster-utils.git
