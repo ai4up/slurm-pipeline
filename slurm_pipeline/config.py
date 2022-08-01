@@ -99,6 +99,7 @@ properties:
                 script:
                     type: string
                     description: Path to the Python script to run.
+                countries:??
                 data_dir:
                     type: string
                     description: Path to the data directory.
