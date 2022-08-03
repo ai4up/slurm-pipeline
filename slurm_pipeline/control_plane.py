@@ -9,11 +9,14 @@ from enum import Enum
 from pathlib import Path
 from collections import defaultdict, Counter
 
+import yaml
+
 import config
 import slurm
 from slurm import Status, SlurmException
 from slurm_pipeline.cluster_utils.slack_notifications import SlackLoggingHandler
 import slurm_pipeline.cluster_utils.slack_notifications as slack
+from slurm_pipeline.config import UsageError
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +25,14 @@ class WorkPackage():
 
     Status = Enum('STATUS', 'PENDING FAILED SUCCEEDED')
 
-    def __init__(self, path, cpus, time, partition=None):
-        self.path = path
+    def __init__(self, params, cpus, time, partition=None):
+        self.params = params
         self.cpus = cpus
         self.time = time
         self.qos = self._determine_qos()
         self.partition = partition or self._determine_partition()
         self.n_tries = 0
-        self.name = Path(path).stem
+        self.name = 'TBD' #params['name']
         self.status = WorkPackage.Status.PENDING
         self.slurm_status = None
         self.error_msg = None
@@ -40,8 +43,8 @@ class WorkPackage():
 
 
     @staticmethod
-    def init_failed(path, error_msg):
-        wp = WorkPackage(path, cpus=None, time=None)
+    def init_failed(params, error_msg):
+        wp = WorkPackage(params, cpus=None, time=None)
         # TODO: introduce INIT_FAILED (& ABORTED) status in order to differentiate between runtime and init failures when assessing if failure threshold has been reached
         wp.status = WorkPackage.Status.FAILED
         wp.error_msg = error_msg
@@ -50,7 +53,7 @@ class WorkPackage():
 
     def encode(self):
         return {
-            'path': self.path,
+            'params': self.params,
             'cpus': self.cpus,
             'time': self.time,
             'partition': self.partition,
@@ -149,14 +152,19 @@ class Scheduler():
     def init_queue(self):
         logger.info('Initialized queue...')
         for country in self.countries:
-            for path in self._get_work_paths(country):
+            # if self.run_as_monolith:
+            #         wp = WorkPackage(path=None, **self.job_config['resources'])
+            #         self.work_packages.append(wp)
+            #         continue
+
+            for params in self._get_work_params(country):
                 try:
-                    resource_conf = config.get_resource_config(path, self.job_config)
-                    wp = WorkPackage(path, **resource_conf)
+                    resource_conf = config.get_resource_config(params, self.job_config)
+                    wp = WorkPackage(params, **resource_conf)
 
                 except Exception as e:
-                    logger.error(f'Failed to initialize work package for {path}: {e}')
-                    wp = WorkPackage.init_failed(path, str(e))
+                    logger.error(f'Failed to initialize work package for {params}: {e}')
+                    wp = WorkPackage.init_failed(params, str(e))
 
                 self.work_packages.append(wp)
 
@@ -362,7 +370,7 @@ class Scheduler():
 
     def _requeue_work(self, wp):
         if wp.n_tries >= self.max_retries:
-            logger.error(f'Work package for {wp.path} failed to schedule after {self.max_retries} retries. Removing from queue.')
+            logger.error(f'Work package for {wp.params} failed to schedule after {self.max_retries} retries. Removing from queue.')
             self._decommission(wp)
             return
 
@@ -410,11 +418,10 @@ class Scheduler():
 
     def _persist_workfile(self, wps):
         workfile = os.path.join(self.workdir, f'{uuid.uuid4()}-workfile.txt')
-        wp_paths = [wp.path for wp in wps]
+        wp_params = [wp.params for wp in wps]
 
-        with open(workfile, 'w') as f:
-            for item in wp_paths:
-                f.write(f'{item}\n')
+        with open(workfile, 'w', encoding='utf8') as f:
+            json.dump(wp_params, f, indent=2, ensure_ascii=False)
 
         return workfile
 
@@ -429,24 +436,35 @@ class Scheduler():
             json.dump(wps, f, sort_keys=True, indent=4, ensure_ascii=False)
 
 
-    def _get_work_paths(self, country_name):
+    def _get_work_params(self, country_name):
+        filename = self.custom_workfile or f'params.yml'
 
-        filename = self.custom_workfile or f'paths_{country_name}.txt'
-        file_path = os.path.join(self.data_dir, country_name, filename)
+        if country_name:
+            file_path = os.path.join(self.data_dir, country_name, filename)
+        else:
+            file_path = os.path.join(self.data_dir, filename)
 
         try:
-            with open(file_path) as f:
-                paths = [line.rstrip() for line in f]
+            with open(file_path, 'r', encoding='utf-8') as f:
+                if 'yml' in filename:
+                    params = yaml.safe_load(f)
+                elif 'json' in filename:
+                    params = json.load(f)
+                else:
+                    raise UsageError(f'Unsupported file type. Please specify workfiles of type YAML or JSON.')
+
+
         except FileNotFoundError:
             logger.critical(f'Could not find workfile {file_path} for country {country_name}.')
             return []
 
-        if self.left_over:
-            unprocessed_paths = [path for path in paths if not os.path.isfile(f'{path}_{self.left_over}.csv')]
-            logger.info(f'{len(unprocessed_paths)} of {len(paths)} *_{self.left_over}.csv paths left over from previous run.')
-            return unprocessed_paths
+        # TODO support left_over workfiles for yaml param files as well
+        # if self.left_over:
+        #     unprocessed_paths = [path for path in paths if not os.path.isfile(f'{path}_{self.left_over}.csv')]
+        #     logger.info(f'{len(unprocessed_paths)} of {len(paths)} *_{self.left_over}.csv paths left over from previous run.')
+        #     return unprocessed_paths
 
-        return paths
+        return params
 
 
     def _notify(self, msg, thread=True):

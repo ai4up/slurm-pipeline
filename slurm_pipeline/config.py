@@ -22,6 +22,7 @@ DEFAULT_CUSTOM_WORKFILE = None
 DEFAULT_SLACK_CHANNEL = None
 DEFAULT_SLACK_TOKEN = None
 DEFAULT_ACCOUNT = None
+DEFAULT_COUNTRIES = ['']
 
 SCHEMA_PROPERTIES = """
 properties:
@@ -99,6 +100,9 @@ properties:
                 script:
                     type: string
                     description: Path to the Python script to run.
+                countries:
+                    type: array
+                    description: List of countries to run the job for.
                 data_dir:
                     type: string
                     description: Path to the data directory.
@@ -234,6 +238,9 @@ def _set_defaults(config):
     config['properties']['slack'] = config['properties'].get('slack', {})
     config['properties']['slack']['channel'] = config['properties']['slack'].get('channel', DEFAULT_SLACK_CHANNEL)
     config['properties']['slack']['token'] = config['properties']['slack'].get('token', DEFAULT_SLACK_TOKEN)
+
+    for job in config['jobs']:
+        job['countries'] = job.get('countries', DEFAULT_COUNTRIES)
 
 
 def _merge_defaults(config):

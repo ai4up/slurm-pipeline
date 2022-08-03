@@ -29,11 +29,11 @@ def _results():
     return succeeded_work, failed_work
 
 
-def _mock_get_work_paths(*args):
-    return [f'/path/to/city_{random.randint(0, 100)}']
+def _mock_get_work_params(*args):
+    return [{'city': f'city_{random.randint(0, 100)}'}]
 
 
-@patch.object(control_plane.Scheduler, '_get_work_paths', _mock_get_work_paths)
+@patch.object(control_plane.Scheduler, '_get_work_params', _mock_get_work_params)
 @patch("slurm_pipeline.control_plane.time.sleep")
 @patch("slurm_pipeline.control_plane.config.get_resource_config", side_effect=[
     {'cpus': 1, 'time': '01:00:00'},
@@ -65,11 +65,11 @@ def test_main(sbatch_mock, *args):
 
 
 def test_groupby_resource_allocation():
-    wp1 = control_plane.WorkPackage('/path/to/city_1', cpus=1, time='01:00:00')
-    wp2 = control_plane.WorkPackage('/path/to/city_2', cpus=2, time='02:00:00')
-    wp3 = control_plane.WorkPackage('/path/to/city_3', cpus=1, time='01:00:00')
-    wp4 = control_plane.WorkPackage('/path/to/city_4', cpus=2, time='01:00:00')
-    wp5 = control_plane.WorkPackage('/path/to/city_4', cpus=2, time='02:00:00')
+    wp1 = control_plane.WorkPackage({'city': 'city_1'}, cpus=1, time='01:00:00')
+    wp2 = control_plane.WorkPackage({'city': 'city_2'}, cpus=2, time='02:00:00')
+    wp3 = control_plane.WorkPackage({'city': 'city_3'}, cpus=1, time='01:00:00')
+    wp4 = control_plane.WorkPackage({'city': 'city_4'}, cpus=2, time='01:00:00')
+    wp5 = control_plane.WorkPackage({'city': 'city_5'}, cpus=2, time='02:00:00')
 
     scheduler = control_plane.Scheduler(_test_job_config())
     grouped_wps = list(scheduler._groupby_resource_allocation([wp1, wp2, wp3, wp4, wp5]))

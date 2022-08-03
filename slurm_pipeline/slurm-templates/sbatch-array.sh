@@ -8,11 +8,15 @@ SCRIPT="$1"
 CONDA_ENV="$2"
 WORKFILE="$3"
 
-CITY_IDX=$(($SLURM_ARRAY_TASK_ID + 1))
-CITY_PATH=$(sed -n ${CITY_IDX}p "$WORKFILE")
-
 module load anaconda
+module load jq
 
 source activate "$CONDA_ENV"
 
-python -u "$SCRIPT" -p "$CITY_PATH"
+jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | python -u "$SCRIPT"
+
+
+# SCRIPT MUSS ACCEPT INPUT FROM STDIN LIKE:
+# import json, sys
+# request = json.load(sys.stdin)
+# some_func(**request, fixed_params='XY')
