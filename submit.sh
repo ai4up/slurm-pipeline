@@ -9,7 +9,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=control_plane.stdout
 #SBATCH --error=control_plane.stderr
-#SBATCH --workdir=/p/tmp/floriann/control_plane
+#SBATCH --workdir=/p/tmp/fewagner/control_plane
 
 pwd; hostname; date
 
@@ -17,4 +17,4 @@ module load anaconda
 
 source activate /home/floriann/.conda/envs/slurm-pipeline
 
-python -u /p/projects/eubucco/slurm-pipeline/slurm_pipeline/main.py
+python -u /p/projects/eubucco/other_projects/urbanformvmt_global/xml4uf_global/slurm-pipeline/slurm_pipeline/main.py

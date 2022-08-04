@@ -14,9 +14,14 @@ import yaml
 import config
 import slurm
 from slurm import Status, SlurmException
-from slurm_pipeline.cluster_utils.slack_notifications import SlackLoggingHandler
-import slurm_pipeline.cluster_utils.slack_notifications as slack
-from slurm_pipeline.config import UsageError
+#from slurm_pipeline.cluster_utils.slack_notifications import SlackLoggingHandler
+#import slurm_pipeline.cluster_utils.slack_notifications as slack
+#from slurm_pipeline.config import UsageError
+
+from cluster_utils.slack_notifications import SlackLoggingHandler
+import cluster_utils.slack_notifications as slack
+from config import UsageError
+
 
 logger = logging.getLogger(__name__)
 

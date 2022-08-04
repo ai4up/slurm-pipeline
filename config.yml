@@ -54,7 +54,7 @@ jobs:
   #         time: "24:00:00"
 
 properties:
-  conda_env: "/home/fewagner/.conda/envs/xml4uf"
+  conda_env: "/home/fewagner/.conda/envs/inrix-env"
   account: eubucco
   log_level: WARN
   exp_backoff_factor: 4

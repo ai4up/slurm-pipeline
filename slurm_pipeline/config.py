@@ -185,16 +185,17 @@ def get_job_config(config, job_name):
 def get_resource_config(base_path, job_config):
     default_resource_config = job_config['resources']
 
-    for sc in job_config['special_cases']:
+    if 'special_cases' in job_config:
+        for sc in job_config['special_cases']:
 
-        if file_config := sc.get('file'):
-            path = f"{base_path}_{file_config['type']}"
-            size = os.path.getsize(path)
-            min = file_config.get('file_size_min', 0)
-            max = file_config.get('file_size_max', float('inf'))
+            if file_config == sc.get('file'):
+                path = f"{base_path}_{file_config['type']}"
+                size = os.path.getsize(path)
+                min = file_config.get('file_size_min', 0)
+                max = file_config.get('file_size_max', float('inf'))
 
-            if size >= min and size <= max:
-                return {**default_resource_config, **sc['resources']}
+                if size >= min and size <= max:
+                    return {**default_resource_config, **sc['resources']}
 
     return default_resource_config
 

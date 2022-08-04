@@ -13,6 +13,6 @@ logger = logging.getLogger(__name__)
 if __name__ == '__main__':
     conf = config.load()
     logger.setLevel(conf['properties']['log_level'])
-    job_conf = config.get_job_config(conf, 'feature-engineering')
+    job_conf = config.get_job_config(conf, 'streets-downloading')
     scheduler = Scheduler(job_conf)
     scheduler.main()
