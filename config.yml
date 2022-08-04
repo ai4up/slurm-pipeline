@@ -1,54 +1,65 @@
 jobs:
-  - name: feature-engineering
-    countries: [spain]
-    script: /p/projects/eubucco/git-eubucco/database/feature-engineering/fts.py
-    data_dir: /p/projects/eubucco/data/2-database-city-level-v0_1
-    log_dir: /p/tmp/floriann/feature-engineering/spain-demo
+  - name: streets-downloading
+    script: /p/projects/eubucco/other_projects/urbanformvmt_global/xml4uf_global/xml4uf/downloading/od_to_street.py
+    data_dir: /p/projects/eubucco/other_projects/urbanformvmt_global/data
+    log_dir: /p/tmp/fewagner/xml4uf/streets_download
     properties:
       left_over: ''
-      log_level: INFO
     resources:
       cpus: 1
-      time: "06:00:00"
-    special_cases:
-      - name: tiny-cities
-        file:
-          type: geom.csv
-          file_size_max: 10000000
-        resources:
-          cpus: 1
-          time: "01:00:00"
-      - name: small-cities
-        file:
-          type: geom.csv
-          file_size_min: 10000000
-          file_size_max: 20000000
-        resources:
-          cpus: 1
-          time: "03:00:00"
-      - name: medium-cities
-        file:
-          type: geom.csv
-          file_size_min: 20000000
-          file_size_max: 100000000
-        resources:
-          cpus: 4
-          time: "12:00:00"
-      - name: large-cities
-        file:
-          type: geom.csv
-          file_size_min: 100000000
-        resources:
-          cpus: 8
-          time: "24:00:00"
+      time: "00:01:00"
+      partition: io
+
+  # - name: feature-engineering
+  #   countries: [spain]
+  #   script: /p/projects/eubucco/git-eubucco/database/feature-engineering/fts.py
+  #   data_dir: /p/projects/eubucco/data/2-database-city-level-v0_1
+  #   log_dir: /p/tmp/floriann/feature-engineering/spain-demo
+  #   properties:
+  #     left_over: ''
+  #     log_level: INFO
+  #   resources:
+  #     cpus: 1
+  #     time: "06:00:00"
+  #   special_cases:
+  #     - name: tiny-cities
+  #       file:
+  #         type: geom.csv
+  #         file_size_max: 10000000
+  #       resources:
+  #         cpus: 1
+  #         time: "01:00:00"
+  #     - name: small-cities
+  #       file:
+  #         type: geom.csv
+  #         file_size_min: 10000000
+  #         file_size_max: 20000000
+  #       resources:
+  #         cpus: 1
+  #         time: "03:00:00"
+  #     - name: medium-cities
+  #       file:
+  #         type: geom.csv
+  #         file_size_min: 20000000
+  #         file_size_max: 100000000
+  #       resources:
+  #         cpus: 4
+  #         time: "12:00:00"
+  #     - name: large-cities
+  #       file:
+  #         type: geom.csv
+  #         file_size_min: 100000000
+  #       resources:
+  #         cpus: 8
+  #         time: "24:00:00"
 
 properties:
-  conda_env: "/home/nikolami/.conda/envs/ox112"
+  conda_env: "/home/fewagner/.conda/envs/xml4uf"
   account: eubucco
   log_level: WARN
   exp_backoff_factor: 4
-  max_retries: 3
+  max_retries: 1
   poll_interval: 30
   slack:
-    channel: "#eubucco-ml-thesis"
-    token: <to be added>
+    channel: "#test-slurm-bot"
+    token: xoxb-2181800768432-3591454355235-XxTRN4mQidN8x81UmlFg860b
