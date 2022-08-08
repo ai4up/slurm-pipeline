@@ -1,13 +1,13 @@
 jobs:
   - name: streets-downloading
-    script: /p/projects/eubucco/other_projects/urbanformvmt_global/xml4uf_global/xml4uf/downloading/od_to_street.py
+    script: /p/projects/eubucco/other_projects/urbanformvmt_global/xml4uf_global/xml4uf/downloading/download_streets.py
     data_dir: /p/projects/eubucco/other_projects/urbanformvmt_global/data
     log_dir: /p/tmp/fewagner/xml4uf/streets_download
     properties:
       left_over: ''
     resources:
       cpus: 1
-      time: "00:01:00"
+      time: "00:30:00"
       partition: io
 
   # - name: feature-engineering
@@ -54,7 +54,7 @@ jobs:
   #         time: "24:00:00"
 
 properties:
-  conda_env: "/home/fewagner/.conda/envs/inrix-env"
+  conda_env: "/home/fewagner/.conda/envs/xml4uf_env"
   account: eubucco
   log_level: WARN
   exp_backoff_factor: 4

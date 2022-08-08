@@ -13,7 +13,7 @@ module load jq
 
 source activate "$CONDA_ENV"
 
-jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | python -u "$SCRIPT"
+jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | /home/fewagner/.conda/envs/xml4uf_env/bin/python -u "$SCRIPT"
 
 
 # SCRIPT MUSS ACCEPT INPUT FROM STDIN LIKE:

@@ -34,8 +34,8 @@ class WorkPackage():
         self.params = params
         self.cpus = cpus
         self.time = time
+        self.partition = partition or self._determine_partition()        
         self.qos = self._determine_qos()
-        self.partition = partition or self._determine_partition()
         self.n_tries = 0
         self.name = 'TBD' #params['name']
         self.status = WorkPackage.Status.PENDING
@@ -89,12 +89,16 @@ class WorkPackage():
 
 
     def _determine_qos(self):
-        if self.minutes() <= 24 * 60:
-            return 'short'
-        elif self.minutes() <= 24 * 60 * 7:
-            return 'medium'
+        # TODO adjust counter as soon as we move to scheduling several jobs
+        if  self.partition == 'io':
+            return 'io'
         else:
-            return 'long'
+            if self.minutes() <= 24 * 60:
+                return 'short'
+            elif self.minutes() <= 24 * 60 * 7:
+                return 'medium'
+            else:
+                return 'long'
 
 
 class Scheduler():
