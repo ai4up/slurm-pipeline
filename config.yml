@@ -17,8 +17,8 @@ jobs:
     properties:
       left_over: ''
     resources:
-      cpus: 1
-      time: "00:30:00"
+      cpus: 5
+      time: "07:00:00"
 
 properties:
   conda_env: "/home/fewagner/.conda/envs/xml4uf_env"
