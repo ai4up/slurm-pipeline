@@ -20,6 +20,17 @@ jobs:
       cpus: 5
       time: "07:00:00"
 
+#  - name: preprocess_pop_dense
+#    script: /p/projects/eubucco/other_projects/urbanformvmt_global/xml4uf_global/xml4uf/preprocessing/process_pop_dense.py
+#    data_dir: /p/projects/eubucco/other_projects/urbanformvmt_global/data
+#    log_dir: /p/tmp/fewagner/xml4uf/preprocessing
+#    properties:
+#      left_over: ''
+#    resources:
+#      cpus: 3
+#      time: "08:00:00"
+
+
 properties:
   conda_env: "/home/fewagner/.conda/envs/xml4uf_env"
   account: eubucco
