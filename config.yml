@@ -1,9 +1,9 @@
 jobs:
-  - name: feature-engineering
-    countries: [spain]
-    script: /p/projects/eubucco/git-eubucco/database/feature-engineering/fts.py
-    data_dir: /p/projects/eubucco/data/2-database-city-level-v0_1
-    log_dir: /p/tmp/floriann/feature-engineering/spain-demo
+  - name: floor_fixing
+    countries: [1]
+    script: /p/projects/eubucco/git-eubucco/database/preprocessing/4-attrib-cleaning/run_fix_floors.py
+    data_dir: /p/projects/eubucco/data/1-intermediary-outputs
+    log_dir: /p/tmp/fewagner/v0_1-db/fix_id
     properties:
       left_over: ''
       log_level: INFO
@@ -11,32 +11,32 @@ jobs:
       cpus: 1
       time: "06:00:00"
     special_cases:
-      - name: tiny-cities
+      - name: tiny-files
         file:
-          type: geom.csv
+          type: attrib.csv
           file_size_max: 10000000
         resources:
           cpus: 1
           time: "01:00:00"
-      - name: small-cities
+      - name: small-files
         file:
-          type: geom.csv
+          type: attrib.csv
           file_size_min: 10000000
           file_size_max: 20000000
         resources:
           cpus: 1
           time: "03:00:00"
-      - name: medium-cities
+      - name: medium-files
         file:
-          type: geom.csv
+          type: attrib.csv
           file_size_min: 20000000
           file_size_max: 100000000
         resources:
           cpus: 4
           time: "12:00:00"
-      - name: large-cities
+      - name: large-files
         file:
-          type: geom.csv
+          type: attrib.csv
           file_size_min: 100000000
         resources:
           cpus: 8
@@ -47,8 +47,8 @@ properties:
   account: eubucco
   log_level: WARN
   exp_backoff_factor: 4
-  max_retries: 3
+  max_retries: 1
   poll_interval: 30
   slack:
-    channel: "#eubucco-ml-thesis"
-    token: <to be added>
+    channel: "#test-slurm-bot"
+    token: xoxb-2181800768432-3591454355235-XxTRN4mQidN8x81UmlFg860b
