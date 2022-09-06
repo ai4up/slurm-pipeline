@@ -8,6 +8,7 @@ import datetime
 from enum import Enum
 from pathlib import Path
 from collections import defaultdict, Counter
+import pandas as pd
 
 import yaml
 
@@ -29,8 +30,8 @@ class WorkPackage():
         self.params = params
         self.cpus = cpus
         self.time = time
+        self.partition = partition or self._determine_partition() # adjusted like in xmluf branch
         self.qos = self._determine_qos()
-        self.partition = partition or self._determine_partition()
         self.n_tries = 0
         self.name = 'TBD' #params['name']
         self.status = WorkPackage.Status.PENDING
@@ -151,13 +152,9 @@ class Scheduler():
 
     def init_queue(self):
         logger.info('Initialized queue...')
-        for country in self.countries:
-            # if self.run_as_monolith:
-            #         wp = WorkPackage(path=None, **self.job_config['resources'])
-            #         self.work_packages.append(wp)
-            #         continue
-
-            for params in self._get_work_params(country):
+        
+        if not self.countries[0]: # potentially adjust (so far we don't have individual param files for countries)
+            for params in self._get_work_params():
                 try:
                     resource_conf = config.get_resource_config(params, self.job_config)
                     wp = WorkPackage(params, **resource_conf)
@@ -167,6 +164,24 @@ class Scheduler():
                     wp = WorkPackage.init_failed(params, str(e))
 
                 self.work_packages.append(wp)
+
+        else:
+            for country in self.countries: # countries can be either array of str or ints (refering to row in input parsing)
+                # if self.run_as_monolith:
+                #         wp = WorkPackage(path=None, **self.job_config['resources'])
+                #         self.work_packages.append(wp)
+                #         continue
+
+                for path in self._get_work_paths(country):
+                    try:
+                        resource_conf = config.get_resource_config(path, self.job_config)
+                        wp = WorkPackage(path, **resource_conf)
+
+                    except Exception as e:
+                        logger.error(f'Failed to initialize work package for {params}: {e}')
+                        wp = WorkPackage.init_failed(path, str(e))
+
+                    self.work_packages.append(wp)
 
         self.n_wps = len(self.work_packages)
         self._persist_work_status()
@@ -436,13 +451,10 @@ class Scheduler():
             json.dump(wps, f, sort_keys=True, indent=4, ensure_ascii=False)
 
 
-    def _get_work_params(self, country_name):
+    def _get_work_params(self): 
+        # by default take custom workfile or params.yml
         filename = self.custom_workfile or f'params.yml'
-
-        if country_name:
-            file_path = os.path.join(self.data_dir, country_name, filename)
-        else:
-            file_path = os.path.join(self.data_dir, filename)
+        file_path = os.path.join(self.data_dir, filename)
 
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -453,10 +465,37 @@ class Scheduler():
                 else:
                     raise UsageError(f'Unsupported file type. Please specify workfiles of type YAML or JSON.')
 
-
         except FileNotFoundError:
             logger.critical(f'Could not find workfile {file_path} for country {country_name}.')
             return []
+
+        return params 
+
+    def _get_work_paths(self, country_name): 
+        # if country name is provided as str get txt paths
+        if isinstance(country_name, str):
+            filename = f'paths_{country_name}.txt' # when country provided go for .txt files
+            file_path = os.path.join(self.data_dir, country_name, filename) 
+            try:
+                with open(file_path) as f:
+                    paths = [line.rstrip() for line in f]
+            except FileNotFoundError:
+                logger.critical(f'Could not find workfile {file_path} for country {country_name}.')
+                return []
+        
+        # if country name is provided as int get path of parsed file 
+        elif isinstance(country_name, int):
+            #filename = 'inputs-parsing.csv' 
+            file_path = '/p/projects/eubucco/git-eubucco/database/preprocessing/1-parsing/inputs-parsing.csv' #TODO remove hard coded path and put in config
+            try:
+                # get all paths out of csv
+                df_input_parsing = pd.read_csv(file_path)
+                country_folder = df_input_parsing.loc[country_name].country
+                dataset_name = df_input_parsing.loc[country_name].dataset_name
+                paths = os.path.join(self.data_dir,country_folder,dataset_name)
+            except FileNotFoundError:
+                logger.critical(f'Could not find workfile {file_path} for country {country_name}.')
+                return []            
 
         # TODO support left_over workfiles for yaml param files as well
         # if self.left_over:
@@ -464,7 +503,7 @@ class Scheduler():
         #     logger.info(f'{len(unprocessed_paths)} of {len(paths)} *_{self.left_over}.csv paths left over from previous run.')
         #     return unprocessed_paths
 
-        return params
+        return paths 
 
 
     def _notify(self, msg, thread=True):
