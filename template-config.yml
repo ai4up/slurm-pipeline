@@ -1,0 +1,31 @@
+jobs:
+  - name: <some-name>
+    script: </path-to/script-name.py>
+    workfiles:
+    - </path-to/workfile-name-1.py>
+    - </path-to/workfile-name-2.py>
+    log_dir: </path-to-log-dir/>
+    properties:
+      log_level: INFO
+    resources:
+      cpus: 1
+      time: "06:00:00"
+    special_cases:
+      - name: large-files
+        file:
+          type: attrib.csv
+          file_size_min: 100000000
+        resources:
+          cpus: 8
+          time: "24:00:00"
+
+properties:
+  conda_env: </path-to/.conda/envs/env-name>
+  account: <slurm-account>
+  log_level: WARN
+  exp_backoff_factor: 4
+  max_retries: 1
+  poll_interval: 30
+  slack:
+    channel: <"#channel-name">
+    token: <channel-token>
