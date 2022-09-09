@@ -1,5 +1,6 @@
 import os
 import uuid
+import csv
 import json
 import time
 import shutil
@@ -432,13 +433,14 @@ class Scheduler():
     def _get_work_params(self, file_path):
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                if 'yml' in file_path[-3:]:
+                if 'yml' in file_path[-3:] or 'yaml' in file_path[-4:]:
                     params = yaml.safe_load(f)
                 elif 'json' in file_path[-4:]:
                     params = json.load(f)
+                elif 'csv' in file_path[-3:]:
+                    params = list(csv.DictReader(f))
                 else:
                     raise UsageError(f'Unsupported file type. Please specify workfiles of type YAML or JSON.')
-
 
         except FileNotFoundError:
             logger.critical(f'Could not find workfile {file_path}.')
