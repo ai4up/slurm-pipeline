@@ -18,11 +18,9 @@ DEFAULT_FAILURE_THRESHOLD = 0.25
 DEFAULT_FAILURE_THRESHOLD_ACTIVATION = 50
 DEFAULT_KEEP_WORK_DIR = False
 DEFAULT_LEFT_OVER = None
-DEFAULT_CUSTOM_WORKFILE = None
 DEFAULT_SLACK_CHANNEL = None
 DEFAULT_SLACK_TOKEN = None
 DEFAULT_ACCOUNT = None
-DEFAULT_COUNTRIES = ['']
 
 SCHEMA_PROPERTIES = """
 properties:
@@ -45,9 +43,6 @@ properties:
         left_over:
             type: string
             description: Run job only for work packages, which have not been processed yet. Specify type / suffix of job output files (e.g. bld_fts).
-        custom_workfile:
-            type: string
-            description: Custom workfile to be used instead of the default "paths_<country>.txt" file.
         keep_work_dir:
             type: boolean
             description: Keep the work directory after the job has finished.
@@ -92,23 +87,20 @@ properties:
         type: array
         items:
             type: object
-            required: [name, script, data_dir, log_dir, resources]
+            required: [name, script, workfiles, log_dir, resources]
             properties:
                 name:
                     type: string
                     description: Descriptive name of the job.
                 script:
                     type: string
-                    description: Path to the Python script to run.
-                countries:
+                    description: Absolute path to the Python script to run.
+                workfiles:
                     type: array
-                    description: List of countries to run the job for.
-                data_dir:
-                    type: string
-                    description: Path to the data directory.
+                    description: Absolute paths to workfiles.
                 log_dir:
                     type: string
-                    description: Path to store the logs.
+                    description: Absolute path to store the logs.
                 resources:
                     type: object
                     required: [cpus, time]
@@ -228,7 +220,6 @@ def _set_defaults(config):
     config['properties']['account'] = config['properties'].get('account', DEFAULT_ACCOUNT)
     config['properties']['log_level'] = config['properties'].get('log_level', DEFAULT_LOG_LEVEL)
     config['properties']['left_over'] = config['properties'].get('left_over', DEFAULT_LEFT_OVER)
-    config['properties']['custom_workfile'] = config['properties'].get('custom_workfile', DEFAULT_CUSTOM_WORKFILE)
     config['properties']['max_retries'] = config['properties'].get('max_retries', DEFAULT_MAX_RETRIES)
     config['properties']['keep_work_dir'] = config['properties'].get('keep_work_dir', DEFAULT_KEEP_WORK_DIR)
     config['properties']['poll_interval'] = config['properties'].get('poll_interval', DEFAULT_POLL_INTERVAL)
@@ -238,9 +229,6 @@ def _set_defaults(config):
     config['properties']['slack'] = config['properties'].get('slack', {})
     config['properties']['slack']['channel'] = config['properties']['slack'].get('channel', DEFAULT_SLACK_CHANNEL)
     config['properties']['slack']['token'] = config['properties']['slack'].get('token', DEFAULT_SLACK_TOKEN)
-
-    for job in config['jobs']:
-        job['countries'] = job.get('countries', DEFAULT_COUNTRIES)
 
 
 def _merge_defaults(config):

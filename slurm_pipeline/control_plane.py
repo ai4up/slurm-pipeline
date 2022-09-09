@@ -98,14 +98,12 @@ class Scheduler():
         self.job_config = job_config
         self.job_name = job_config['name']
         self.script = job_config['script']
+        self.workfiles = job_config['workfiles']
         self.log_dir = job_config['log_dir']
-        self.data_dir = job_config['data_dir']
-        self.countries = job_config['countries']
 
         self.conda_env = job_config['properties']['conda_env']
         self.account = job_config['properties']['account']
         self.left_over = job_config['properties']['left_over']
-        self.custom_workfile = job_config['properties']['custom_workfile']
         self.keep_work_dir = job_config['properties']['keep_work_dir']
         self.max_retries = job_config['properties']['max_retries']
         self.poll_interval = job_config['properties']['poll_interval']
@@ -151,13 +149,8 @@ class Scheduler():
 
     def init_queue(self):
         logger.info('Initialized queue...')
-        for country in self.countries:
-            # if self.run_as_monolith:
-            #         wp = WorkPackage(path=None, **self.job_config['resources'])
-            #         self.work_packages.append(wp)
-            #         continue
-
-            for params in self._get_work_params(country):
+        for workfile in self.workfiles:
+            for params in self._get_work_params(workfile):
                 try:
                     resource_conf = config.get_resource_config(params, self.job_config)
                     wp = WorkPackage(params, **resource_conf)
@@ -237,7 +230,7 @@ class Scheduler():
         if self.slack_channel and self.slack_token:
             msg = '*PIPELINE JOB STARTED*\n'
             msg += f'> ⌛  Slurm {self.job_name} job is being scheduled...\n'
-            msg += f'> 🌎  Configured countries: {", ".join(self.countries)}'
+            msg += f'> 🌎  Scheduled workfiles: {", ".join(self._workfile_names())}'
             msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
             self._notify(msg, thread=False)
 
@@ -266,7 +259,7 @@ class Scheduler():
     def notify_done(self):
         msg = '*PIPELINE JOB FINISHED*\n'
         msg += f'> 🏁  Slurm {self.job_name} job finished after {self._strf_duration()} hours.\n'
-        msg += f'> 🌎  Processed countries: {", ".join(self.countries)}'
+        msg += f'> 🌎  Processed workfiles: {", ".join(self._workfile_names())}'
         msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
         msg += f'> 🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.'
 
@@ -436,26 +429,19 @@ class Scheduler():
             json.dump(wps, f, sort_keys=True, indent=4, ensure_ascii=False)
 
 
-    def _get_work_params(self, country_name):
-        filename = self.custom_workfile or f'params.yml'
-
-        if country_name:
-            file_path = os.path.join(self.data_dir, country_name, filename)
-        else:
-            file_path = os.path.join(self.data_dir, filename)
-
+    def _get_work_params(self, file_path):
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                if 'yml' in filename:
+                if 'yml' in file_path[-3:]:
                     params = yaml.safe_load(f)
-                elif 'json' in filename:
+                elif 'json' in file_path[-4:]:
                     params = json.load(f)
                 else:
                     raise UsageError(f'Unsupported file type. Please specify workfiles of type YAML or JSON.')
 
 
         except FileNotFoundError:
-            logger.critical(f'Could not find workfile {file_path} for country {country_name}.')
+            logger.critical(f'Could not find workfile {file_path}.')
             return []
 
         # TODO support left_over workfiles for yaml param files as well
@@ -500,6 +486,10 @@ class Scheduler():
 
     def _strf_duration(self):
         return str(datetime.timedelta(seconds=self._duration())).split('.')[0]
+
+
+    def _workfile_names(self):
+        return [os.path.basename(p) for p in self.workfiles]
 
 
     def _duration(self):

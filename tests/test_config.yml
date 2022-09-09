@@ -1,8 +1,10 @@
 jobs:
   - name: feature-engineering
-    countries: [netherlands, spain, france]
-    data_dir: some-data-dir
     script: some-script.py
+    workfiles:
+      - /some-data-dir/austria/parmas.yml
+      - /some-data-dir/netherlands/parmas.yml
+      - /some-data-dir/france/parmas.yml
     log_dir: tests/logs
     resources:
       cpus: 2
