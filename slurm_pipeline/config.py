@@ -185,7 +185,7 @@ def get_job_config(config, job_name):
 def get_resource_config(base_path, job_config):
     default_resource_config = job_config['resources']
 
-    for sc in job_config['special_cases']:
+    for sc in job_config.get('special_cases', []):
 
         if file_config := sc.get('file'):
             path = f"{base_path}_{file_config['type']}"
