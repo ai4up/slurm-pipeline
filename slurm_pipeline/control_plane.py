@@ -29,8 +29,8 @@ class WorkPackage():
         self.params = params
         self.cpus = cpus
         self.time = time
-        self.qos = self._determine_qos()
         self.partition = partition or self._determine_partition()
+        self.qos = self._determine_qos()
         self.n_tries = 0
         self.name = 'TBD' #params['name']
         self.status = WorkPackage.Status.PENDING
