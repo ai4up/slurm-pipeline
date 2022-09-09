@@ -1,7 +1,7 @@
 import logging
 
-import config
-from control_plane import Scheduler
+from slurm_pipeline import config
+from slurm_pipeline.control_plane import Scheduler
 
 logging.basicConfig(
     level=logging.INFO,
