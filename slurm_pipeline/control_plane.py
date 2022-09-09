@@ -464,7 +464,7 @@ class Scheduler():
                 logger.error(f'Failed to send Slack message: {e}')
         else:
             logger.info(f'No notification hook configured. Cannot send message {msg}.')
-            logger.info(f'Consider adding a Slack channel and token to the {config.CONFIG_FILE}.')
+            logger.info('Consider adding a Slack channel and token to the config.')
 
 
     def _failure_threshold_reached(self):

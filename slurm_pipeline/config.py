@@ -6,10 +6,6 @@ import textwrap
 import yaml
 import jsonschema
 
-SRC_DIR = os.path.dirname(os.path.realpath(__file__))
-CONFIG_FILE = 'config.yml'
-CONFIG_PATH = os.path.join(SRC_DIR, '..', CONFIG_FILE)
-
 DEFAULT_LOG_LEVEL = logging.INFO
 DEFAULT_POLL_INTERVAL = 30
 DEFAULT_EXP_BACKOFF_FACTOR = 4
@@ -160,8 +156,8 @@ class UsageError(Exception):
     pass
 
 
-def load():
-    config = _load_config_yaml()
+def load(path):
+    config = _load_config_yaml(path)
     _validate(config)
     _set_defaults(config)
     _merge_defaults(config)
@@ -191,19 +187,19 @@ def get_resource_config(base_path, job_config):
     return default_resource_config
 
 
-def _load_config_yaml():
-    with open(CONFIG_PATH, 'r') as f:
+def _load_config_yaml(path):
+    with open(path, 'r') as f:
         try:
             return yaml.safe_load(f)
         except yaml.YAMLError as e:
-            raise UsageError(f'Error loading config {CONFIG_PATH}:\n{e}')
+            raise UsageError(f'Error loading config {path}:\n{e}')
 
 
 def _validate(config):
     try:
         jsonschema.validate(config, yaml.safe_load(SCHEMA))
     except jsonschema.exceptions.ValidationError as e:
-        raise UsageError(f'Error validating {CONFIG_FILE}:\n{e.message} for {e.json_path}.')
+        raise UsageError(f'Error validating config:\n{e.message} for {e.json_path}.')
 
     _validate_property_conda_env(config)
 

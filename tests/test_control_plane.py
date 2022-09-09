@@ -11,10 +11,8 @@ from slurm_pipeline import config
 
 def _test_job_config():
     test_dir = path.dirname(path.realpath(__file__))
-    config.CONFIG_PATH = path.join(test_dir, 'test_config.yml')
-
-    return config.load()['jobs'][0]
-
+    conf_path = path.join(test_dir, 'test_config.yml')
+    return config.load(conf_path)['jobs'][0]
 
 
 def _results():

@@ -17,4 +17,4 @@ module load anaconda
 
 source activate /home/floriann/.conda/envs/slurm-pipeline
 
-python -u /p/projects/eubucco/slurm-pipeline/slurm_pipeline/main.py
+python -u /p/projects/eubucco/slurm-pipeline/slurm_pipeline/main.py config.yml
