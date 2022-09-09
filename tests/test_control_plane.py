@@ -34,6 +34,7 @@ def _mock_get_work_params(*args):
 
 
 @patch.object(control_plane.Scheduler, '_get_work_params', _mock_get_work_params)
+@patch.object(control_plane.Scheduler, '_persist_workfile')
 @patch("slurm_pipeline.control_plane.time.sleep")
 @patch("slurm_pipeline.control_plane.config.get_resource_config", side_effect=[
     {'cpus': 1, 'time': '01:00:00'},
