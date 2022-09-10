@@ -11,6 +11,7 @@ from pathlib import Path
 from collections import defaultdict, Counter
 
 import yaml
+from deco import synchronized, concurrent
 
 from slurm_pipeline import config
 from slurm_pipeline import slurm
@@ -20,6 +21,47 @@ from slurm_pipeline.cluster_utils.slack_notifications import SlackLoggingHandler
 import slurm_pipeline.cluster_utils.slack_notifications as slack
 
 logger = logging.getLogger(__name__)
+
+
+class ControlPlane():
+    
+    Status = Enum('STATUS', 'PENDING DONE')
+
+    def __init__(self, config):
+        self.config = config
+        self.job_stati = {}
+
+
+    @synchronized
+    def main(self):
+        for job_config in self.config['jobs']:
+            self.schedule_job(job_config)
+
+
+    @concurrent
+    def schedule_job(self, job_config):
+        self._wait_for_dependencies(job_config.get('dependencies', []))
+        print(job_config['name'])
+        scheduler = Scheduler(job_config)
+        scheduler.main()
+        self._done(job_config['name'])
+
+
+    def _wait_for_dependencies(self, dependencies):
+        while self._pending(dependencies):
+            time.sleep(10)
+
+
+    def _done(self, job_name):
+        self.job_stati[job_name] = ControlPlane.Status.DONE
+
+
+    def _pending(self, job_names):
+        return not all(self.job_stati.get(name) == ControlPlane.Status.DONE for name in job_names)
+
+
+    # def pending_jobs(self):
+    #     return any(self.job_stati.get(job['name']) == ControlPlane.Status.PENDING for job in self.config['jobs'])
 
 
 class WorkPackage():
@@ -125,6 +167,9 @@ class Scheduler():
 
 
     def main(self):
+        time.sleep(5)
+        print('DONE')
+        return
         self.init_queue()
         self.notify_start()
         self.init_logger()
