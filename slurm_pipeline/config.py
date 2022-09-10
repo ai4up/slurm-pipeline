@@ -17,6 +17,7 @@ DEFAULT_LEFT_OVER = None
 DEFAULT_SLACK_CHANNEL = None
 DEFAULT_SLACK_TOKEN = None
 DEFAULT_ACCOUNT = None
+DEFAULT_DEPENDENCIES = []
 
 SCHEMA_PROPERTIES = """
 properties:
@@ -94,6 +95,9 @@ properties:
                 workfiles:
                     type: array
                     description: Absolute paths to workfiles.
+                dependencies:
+                    type: array
+                    description: List of job names which have to finish before the job can be scheduled.
                 log_dir:
                     type: string
                     description: Absolute path to store the logs.
@@ -225,6 +229,9 @@ def _set_defaults(config):
     config['properties']['slack'] = config['properties'].get('slack', {})
     config['properties']['slack']['channel'] = config['properties']['slack'].get('channel', DEFAULT_SLACK_CHANNEL)
     config['properties']['slack']['token'] = config['properties']['slack'].get('token', DEFAULT_SLACK_TOKEN)
+
+    for job_config in config['jobs']:
+        job_config['dependencies'] = job_config.get('dependencies', DEFAULT_DEPENDENCIES)
 
 
 def _merge_defaults(config):

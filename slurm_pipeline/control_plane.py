@@ -9,9 +9,9 @@ import datetime
 from enum import Enum
 from pathlib import Path
 from collections import defaultdict, Counter
+from multiprocessing import Process, Manager
 
 import yaml
-from deco import synchronized, concurrent
 
 from slurm_pipeline import config
 from slurm_pipeline import slurm
@@ -23,45 +23,19 @@ import slurm_pipeline.cluster_utils.slack_notifications as slack
 logger = logging.getLogger(__name__)
 
 
-class ControlPlane():
-    
-    Status = Enum('STATUS', 'PENDING DONE')
+def main(config):
+    manager = Manager()
+    job_stati = manager.dict()
+    processes = []
 
-    def __init__(self, config):
-        self.config = config
-        self.job_stati = {}
+    for job_config in config['jobs']:
+        processes.append(Process(target=ConcurrentScheduler.schedule_job, args=(job_config, job_stati)))
 
+    for p in processes:
+        p.start()
 
-    @synchronized
-    def main(self):
-        for job_config in self.config['jobs']:
-            self.schedule_job(job_config)
-
-
-    @concurrent
-    def schedule_job(self, job_config):
-        self._wait_for_dependencies(job_config.get('dependencies', []))
-        print(job_config['name'])
-        scheduler = Scheduler(job_config)
-        scheduler.main()
-        self._done(job_config['name'])
-
-
-    def _wait_for_dependencies(self, dependencies):
-        while self._pending(dependencies):
-            time.sleep(10)
-
-
-    def _done(self, job_name):
-        self.job_stati[job_name] = ControlPlane.Status.DONE
-
-
-    def _pending(self, job_names):
-        return not all(self.job_stati.get(name) == ControlPlane.Status.DONE for name in job_names)
-
-
-    # def pending_jobs(self):
-    #     return any(self.job_stati.get(job['name']) == ControlPlane.Status.PENDING for job in self.config['jobs'])
+    for p in processes:
+        p.join()
 
 
 class WorkPackage():
@@ -167,9 +141,6 @@ class Scheduler():
 
 
     def main(self):
-        time.sleep(5)
-        print('DONE')
-        return
         self.init_queue()
         self.notify_start()
         self.init_logger()
@@ -557,3 +528,37 @@ class Scheduler():
 
         logger.debug(f'Work was grouped in {len(list(groups.values()))} groups with {list(groups.keys())} cpu & timeout configurations respectively.')
         yield from groups.values()
+
+
+class ConcurrentScheduler(Scheduler):
+
+    STATUS_DONE = 'DONE'
+
+    @staticmethod
+    def schedule_job(job_config, job_stati):
+        ConcurrentScheduler(job_config, job_stati).main()
+
+
+    def __init__(self, job_config, job_stati):
+        super().__init__(job_config)
+        self.job_stati = job_stati
+        self.dependencies = self.job_config['dependencies']
+
+
+    def main(self):
+        self._wait_for_dependencies()
+        super().main()
+        self._notify_done()
+
+
+    def _wait_for_dependencies(self):
+        while self._pending(self.dependencies):
+            time.sleep(10)
+
+
+    def _notify_done(self):
+        self.job_stati[self.job_name] = ConcurrentScheduler.STATUS_DONE
+
+
+    def _pending(self, job_names):
+        return not all(self.job_stati.get(name) == ConcurrentScheduler.STATUS_DONE for name in job_names)
