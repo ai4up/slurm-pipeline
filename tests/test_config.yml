@@ -18,6 +18,18 @@ jobs:
           cpus: 1
           time: 01:00:00
 
+  - name: ml-training
+    script: some-script.py
+    workfiles:
+      - /some-data-dir/austria/parmas.yml
+      - /some-data-dir/netherlands/parmas.yml
+      - /some-data-dir/france/parmas.yml
+    log_dir: tests/logs
+    dependencies: [feature-engineering]
+    resources:
+      cpus: 2
+      time: 02:00:00
+
 properties:
   conda_env: some-conda-env
   account: eubucco
