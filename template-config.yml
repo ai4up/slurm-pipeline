@@ -1,7 +1,7 @@
 jobs:
   - name: <some-name>
     script: </path-to/script-name.py>
-    workfiles:
+    param_files:
     - </path-to/workfile-name-1.py>
     - </path-to/workfile-name-2.py>
     log_dir: </path-to-log-dir/>

@@ -84,7 +84,7 @@ properties:
         type: array
         items:
             type: object
-            required: [name, script, workfiles, log_dir, resources]
+            required: [name, script, param_files, log_dir, resources]
             properties:
                 name:
                     type: string
@@ -92,9 +92,9 @@ properties:
                 script:
                     type: string
                     description: Absolute path to the Python script to run.
-                workfiles:
+                param_files:
                     type: array
-                    description: Absolute paths to workfiles.
+                    description: Absolute paths to param_files.
                 log_dir:
                     type: string
                     description: Absolute path to store the logs.

@@ -99,7 +99,7 @@ class Scheduler():
         self.job_config = job_config
         self.job_name = job_config['name']
         self.script = job_config['script']
-        self.workfiles = job_config['workfiles']
+        self.param_files = job_config['param_files']
         self.log_dir = job_config['log_dir']
 
         self.conda_env = job_config['properties']['conda_env']
@@ -150,8 +150,8 @@ class Scheduler():
 
     def init_queue(self):
         logger.info('Initialized queue...')
-        for workfile in self.workfiles:
-            for params in self._get_work_params(workfile):
+        for param_file in self.param_files:
+            for params in self._get_work_params(param_file):
                 try:
                     resource_conf = config.get_resource_config(self.job_config, params)
                     wp = WorkPackage(params, **resource_conf)
@@ -231,7 +231,7 @@ class Scheduler():
         if self.slack_channel and self.slack_token:
             msg = '*PIPELINE JOB STARTED*\n'
             msg += f'> ⌛  Slurm {self.job_name} job is being scheduled...\n'
-            msg += f'> 🌎  Scheduled workfiles: {", ".join(self._workfile_names())}'
+            msg += f'> 🌎  Scheduled param_file: {", ".join(self._param_files_names())}'
             msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
             self._notify(msg, thread=False)
 
@@ -260,7 +260,7 @@ class Scheduler():
     def notify_done(self):
         msg = '*PIPELINE JOB FINISHED*\n'
         msg += f'> 🏁  Slurm {self.job_name} job finished after {self._strf_duration()} hours.\n'
-        msg += f'> 🌎  Processed workfiles: {", ".join(self._workfile_names())}'
+        msg += f'> 🌎  Processed param_file: {", ".join(self._param_files_names())}'
         msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
         msg += f'> 🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.'
 
@@ -440,13 +440,13 @@ class Scheduler():
                 elif 'csv' in file_path[-3:]:
                     params = list(csv.DictReader(f))
                 else:
-                    raise UsageError(f'Unsupported file type. Please specify workfiles of type YAML or JSON.')
+                    raise UsageError(f'Unsupported file type. Please specify param_file of type YAML, JSON, or CSV.')
 
         except FileNotFoundError:
             logger.critical(f'Could not find workfile {file_path}.')
             return []
 
-        # TODO support left_over workfiles for yaml param files as well
+        # TODO support left_over param_file for yaml param files as well
         # if self.left_over:
         #     unprocessed_paths = [path for path in paths if not os.path.isfile(f'{path}_{self.left_over}.csv')]
         #     logger.info(f'{len(unprocessed_paths)} of {len(paths)} *_{self.left_over}.csv paths left over from previous run.')
@@ -490,8 +490,8 @@ class Scheduler():
         return str(datetime.timedelta(seconds=self._duration())).split('.')[0]
 
 
-    def _workfile_names(self):
-        return [os.path.basename(p) for p in self.workfiles]
+    def _param_files_names(self):
+        return [os.path.basename(p) for p in self.param_files]
 
 
     def _duration(self):
