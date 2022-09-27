@@ -153,7 +153,7 @@ class Scheduler():
         for workfile in self.workfiles:
             for params in self._get_work_params(workfile):
                 try:
-                    resource_conf = config.get_resource_config(params, self.job_config)
+                    resource_conf = config.get_resource_config(self.job_config, params)
                     wp = WorkPackage(params, **resource_conf)
 
                 except Exception as e:

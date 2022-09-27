@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import logging
 import textwrap
@@ -132,11 +133,11 @@ properties:
                                         description: Slurm partition.
                             file:
                                 type: object
-                                required: [type]
+                                required: [path]
                                 properties:
-                                    type:
+                                    path:
                                         type: string
-                                        description: Type / suffix of file to consider for special case assessment.
+                                        description: Path to file to consider for special case assessment (may include variables from workfile with {{var}}).
                                     file_size_min:
                                         type: integer
                                         description: Minimum file size.
@@ -170,13 +171,13 @@ def get_job_config(config, job_name):
     return next(job_conf for job_conf in config['jobs'] if job_conf['name'] == job_name)
 
 
-def get_resource_config(base_path, job_config):
+def get_resource_config(job_config, params):
     default_resource_config = job_config['resources']
 
     for sc in job_config.get('special_cases', []):
 
         if file_config := sc.get('file'):
-            path = f"{base_path}_{file_config['type']}"
+            path = _interpolate_variables(file_config['path'], params)
             size = os.path.getsize(path)
             min = file_config.get('file_size_min', 0)
             max = file_config.get('file_size_max', float('inf'))
@@ -185,6 +186,14 @@ def get_resource_config(base_path, job_config):
                 return {**default_resource_config, **sc['resources']}
 
     return default_resource_config
+
+
+def _interpolate_variables(path, params):
+    variables = re.findall(r'{{(.*?)}}', path)
+    for v in variables:
+        path = path.replace('{{%s}}' % v, params.get(v))
+
+    return path
 
 
 def _load_config_yaml(path):

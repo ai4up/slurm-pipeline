@@ -12,7 +12,7 @@ jobs:
     special_cases:
       - name: small-cities
         file:
-          type: geom.csv
+          path: geom.csv
           file_size_max: 20000
         resources:
           cpus: 1

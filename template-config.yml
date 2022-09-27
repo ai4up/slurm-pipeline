@@ -13,7 +13,7 @@ jobs:
     special_cases:
       - name: large-files
         file:
-          type: attrib.csv
+          path: /static/directory/{{country}}/{{other-var}}/static_filename.csv
           file_size_min: 100000000
         resources:
           cpus: 8
