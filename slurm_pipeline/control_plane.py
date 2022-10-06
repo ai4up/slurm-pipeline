@@ -45,7 +45,7 @@ class WorkPackage():
 
     @staticmethod
     def init_failed(params, error_msg):
-        wp = WorkPackage(params, cpus=None, time=None)
+        wp = WorkPackage(params, cpus=0, time='0')
         # TODO: introduce INIT_FAILED (& ABORTED) status in order to differentiate between runtime and init failures when assessing if failure threshold has been reached
         wp.status = WorkPackage.Status.FAILED
         wp.error_msg = error_msg
