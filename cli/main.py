@@ -44,6 +44,7 @@ def errors(
 @app.command()
 def inspect_validate_ids_results(
     path: str = typer.Argument('work.json', help='Path to work.json file.'),
+    n: int = typer.Option(5, '-n', help='Show n cities with most errors.'),
 ):
     """
     Inspect and aggregate eubucco's validate ids step by country.
@@ -59,29 +60,35 @@ def inspect_validate_ids_results(
         result['status'] = wp['status']
         result['country'] = wp['params']['city_path'].split('/')[6]
         result['city'] = wp['params']['city_path'].split('/')[-1]
+        result['error'] = _error_type(wp)
 
         # extract integer count from all messages on interest
         for s in msg_on_interest:
             parsed_log = log.split(s)
             if len(parsed_log) > 1:
-                result[s] = parsed_log[1].splitlines()[0].strip()
+                result[s] = int(parsed_log[1].splitlines()[0].strip())
             else:
                 result[s] = 0
 
         results.append(result)
 
     df = pd.DataFrame(results)
-    errors_by_country = df.groupby('country')[msg_on_interest].sum()
+    val_checks_by_country = df.groupby('country')[msg_on_interest].sum(numeric_only=True)
 
-    typer.echo('Aggregated validation results by country:')
-    typer.echo(tabulate.tabulate(errors_by_country, headers='keys', showindex=True, tablefmt='psql'))
+    typer.echo('Aggregated validation results for each country:')
+    typer.echo(tabulate.tabulate(val_checks_by_country, headers='keys', showindex=True, tablefmt='psql'))
 
-    typer.echo('Failed cities results by country:')
+    typer.echo(f'The {n} cities with the most errors for each country:')
     for country, group in df.groupby('country'):
-        cities_with_errors = group.set_index('city')[msg_on_interest].mean().sort_values()
+        cities_with_errors = group.set_index('city')[msg_on_interest].mean(numeric_only=True).sort_values()
         cities_with_errors = cities_with_errors[cities_with_errors > 0]
         if not cities_with_errors.empty:
-            typer.echo(f'{country}: {cities_with_errors.tail(5).index}')
+            typer.echo(f'{country}: {cities_with_errors.tail(n).index}')
+
+    typer.echo('Most common error for each country:')
+    errors_by_country = df.groupby('country')['error'].value_counts().nlargest(10)
+    errors_by_country = errors_by_country.rename('count').to_frame().reset_index()
+    typer.echo(tabulate.tabulate(errors_by_country, headers='keys', showindex=False, tablefmt='psql'))
 
 
 def _load(path):
@@ -102,14 +109,18 @@ def _failed(work_packages):
 
 
 def _error_counter(work_packages):
-    return Counter([str(wp['error_msg']).split(':')[0] for wp in work_packages])
+    return Counter([_error_type(wp) for wp in work_packages])
+
+
+def _error_type(wp):
+    return (wp['error_msg'] or '').split(':')[0] or None
 
 
 def _stdout_log(wp):
-    if path := wp['stdout_log']:
-        return Path(path).read_text()
-
-    return ''
+    try:
+        return Path(wp['stdout_log']).read_text()
+    except (FileNotFoundError, TypeError):
+        return ''
 
 
 if __name__ == '__main__':
