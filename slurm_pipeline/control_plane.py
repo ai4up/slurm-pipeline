@@ -22,6 +22,12 @@ import slurm_pipeline.cluster_utils.slack_notifications as slack
 logger = logging.getLogger(__name__)
 
 
+def main(config):
+    for job_config in config['jobs']:
+        scheduler = Scheduler(job_config)
+        scheduler.main()
+
+
 class WorkPackage():
 
     Status = Enum('STATUS', 'PENDING FAILED SUCCEEDED')
