@@ -100,7 +100,7 @@ class Scheduler():
         self.job_name = job_config['name']
         self.script = job_config['script']
         self.param_files = job_config['param_files']
-        self.log_dir = job_config['log_dir']
+        self.log_dir = os.path.join(job_config['log_dir'], f'{self.job_name}-{self._current_time()}')
 
         self.conda_env = job_config['properties']['conda_env']
         self.account = job_config['properties']['account']
@@ -115,13 +115,14 @@ class Scheduler():
         self.exp_backoff_factor = job_config['properties']['exp_backoff_factor']
 
         self.start_time = time.time()
-        self.workdir = os.path.join(self.log_dir, str(uuid.uuid4()))
+        self.workdir = os.path.join(self.log_dir, 'workdir')
+        self.task_log_dir = os.path.join(self.log_dir, 'task-logs')
         self.work_packages = []
         self.n_wps = None
         self.slack_thread_id = None
 
-        self._safely_mkdir(self.log_dir)
         self._safely_mkdir(self.workdir)
+        self._safely_mkdir(self.task_log_dir)
 
 
     def main(self):
@@ -392,17 +393,17 @@ class Scheduler():
                 qos=wps[0].qos,
                 partition=wps[0].partition,
                 job_name=self.job_name,
-                log_dir=self.log_dir,
+                log_dir=self.task_log_dir,
                 account=self.account,
-                error='%x_%A_%a.stderr',
-                output='%x_%A_%a.stdout'
+                error='%A_%a.stderr',
+                output='%A_%a.stdout'
                 )
 
             for wp in wps:
                 wp.n_tries += 1
                 wp.job_id = job_ids.pop(0)
-                wp.stdout_log = os.path.join(self.log_dir, f'{self.job_name}_{wp.job_id}.stdout')
-                wp.stderr_log = os.path.join(self.log_dir, f'{self.job_name}_{wp.job_id}.stderr')
+                wp.stdout_log = os.path.join(self.task_log_dir, f'{wp.job_id}.stdout')
+                wp.stderr_log = os.path.join(self.task_log_dir, f'{wp.job_id}.stderr')
 
         except SlurmException as e:
             logger.critical(f'Failed to submit Slurm job array: {e}')
@@ -488,6 +489,10 @@ class Scheduler():
 
     def _strf_duration(self):
         return str(datetime.timedelta(seconds=self._duration())).split('.')[0]
+
+
+    def _current_time(self):
+        return datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S')
 
 
     def _param_files_names(self):
