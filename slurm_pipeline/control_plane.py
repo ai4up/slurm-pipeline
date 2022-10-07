@@ -170,7 +170,12 @@ class Scheduler():
                 self.work_packages.append(wp)
 
         self.n_wps = len(self.work_packages)
+        self.n_init_failed = len(self.failed_work())
         self._persist_work_status()
+
+        if self._init_failure_threshold_reached():
+            logger.critical(f'Failure threshold of {self.failure_threshold} reached during work initialization. No Slurm jobs will be scheduled. Aborting the pipeline run...')
+            self._panic()
 
 
     def schedule(self):
@@ -218,7 +223,7 @@ class Scheduler():
             else:
                 self._process_unknown_status(wp)
 
-        if self._failure_threshold_reached():
+        if self._runtime_failure_threshold_reached():
             logger.critical(f'Failure threshold of {self.failure_threshold} reached. Cancelling all Slurm jobs and aborting the pipeline run...')
             self._panic()
 
@@ -474,12 +479,19 @@ class Scheduler():
             logger.info('Consider adding a Slack channel and token to the config.')
 
 
-    def _failure_threshold_reached(self):
-        n_processed_wps = len(self.failed_work()) + len(self.succeeded_work())
+    def _init_failure_threshold_reached(self):
+        failure_rate = self.n_init_failed / self.n_wps
+        return failure_rate >= self.failure_threshold
+
+
+    def _runtime_failure_threshold_reached(self):
+        n_failed_wps = len(self.failed_work()) - self.n_init_failed
+        n_processed_wps = len(self.succeeded_work()) + n_failed_wps
+
         if n_processed_wps < self.failure_threshold_activation:
             return False
 
-        failure_rate = len(self.failed_work()) / n_processed_wps
+        failure_rate = n_failed_wps / n_processed_wps
         return failure_rate >= self.failure_threshold
 
 
