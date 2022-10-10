@@ -375,7 +375,7 @@ class Scheduler():
 
 
     def _requeue_work(self, wp):
-        if wp.n_tries >= self.max_retries:
+        if wp.n_tries > self.max_retries:
             logger.error(f'Work package for {wp.params} failed to schedule after {self.max_retries} retries. Removing from queue.')
             self._decommission(wp)
             return
