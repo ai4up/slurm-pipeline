@@ -15,7 +15,7 @@ import yaml
 from slurm_pipeline import config
 from slurm_pipeline import slurm
 from slurm_pipeline.config import UsageError
-from slurm_pipeline.slurm import Status, SlurmException
+from slurm_pipeline.slurm import Status, SlurmException, SlurmConfig
 from slurm_pipeline.cluster_utils.slack_notifications import SlackLoggingHandler
 import slurm_pipeline.cluster_utils.slack_notifications as slack
 
@@ -32,12 +32,12 @@ class WorkPackage():
 
     Status = Enum('STATUS', 'PENDING FAILED SUCCEEDED')
 
-    def __init__(self, params, cpus, time, partition=None):
+    def __init__(self, params, cpus, time, mem=None, partition=None):
         self.params = params
         self.cpus = cpus
+        self.mem = mem
         self.time = time
-        self.partition = partition or self._determine_partition()
-        self.qos = self._determine_qos()
+        self.partition = partition
         self.n_tries = 0
         self.name = 'TBD' #params['name']
         self.status = WorkPackage.Status.PENDING
@@ -62,9 +62,9 @@ class WorkPackage():
         return {
             'params': self.params,
             'cpus': self.cpus,
+            'mem': self.mem,
             'time': self.time,
             'partition': self.partition,
-            'qos': self.qos,
             'name': self.name,
             'status': self.status.name,
             'slurm_status': self.slurm_status.name if self.slurm_status else None,
@@ -77,26 +77,8 @@ class WorkPackage():
         }
 
 
-    def minutes(self):
-        timedelta = slurm.parse_time(self.time)
-        return round(timedelta.total_seconds() / 60)
-
-
     def to_json(self):
         return json.dumps(self.encode(), sort_keys=True, indent=4, ensure_ascii=False).encode('utf8')
-
-
-    def _determine_partition(self):
-        return 'standard' if self.cpus <= 16 else 'broadwell'
-
-
-    def _determine_qos(self):
-        if self.minutes() <= 24 * 60:
-            return 'short'
-        elif self.minutes() <= 24 * 60 * 7:
-            return 'medium'
-        else:
-            return 'long'
 
 
 class Scheduler():
@@ -325,18 +307,19 @@ class Scheduler():
 
 
     def _process_timeout(self, wp):
-        wp.time = wp.minutes() * self.exp_backoff_factor
+        wp.time = slurm.minutes(wp.time) * self.exp_backoff_factor
         logger.error(f'Job {wp.name} ({wp.job_id}) ran into timeout. Rescheduling with {self.exp_backoff_factor}x higher timeout: {wp.time}.')
         self._requeue_work(wp)
 
 
     def _process_oom(self, wp):
-        if wp.cpus >= slurm.MAX_CPUS:
-            logger.error(f'Job {wp.name} ({wp.job_id}) ran out of memory, but has already been allocated the maximum number of cpus ({slurm.MAX_CPUS}). Rescheduling not possible. Removing job from queue.')
+        wp.mem = wp.mem or wp.cpus * slurm.MEM_PER_CPU
+        if wp.mem >= slurm.MAX_GPU_MEM:
+            logger.error(f'Job {wp.name} ({wp.job_id}) ran out of memory, but has already been allocated the maximum available memory ({slurm.MAX_GPU_MEM}). Rescheduling not possible. Removing job from queue.')
             self._decommission(wp)
         else:
-            wp.cpus *= self.exp_backoff_factor
-            logger.error(f'Job {wp.name} ({wp.job_id}) ran out of memory. Rescheduling with {self.exp_backoff_factor}x higher cpu count: {wp.cpus}.')
+            wp.mem *= self.exp_backoff_factor
+            logger.error(f'Job {wp.name} ({wp.job_id}) ran out of memory. Rescheduling with {self.exp_backoff_factor}x higher memory: {wp.mem}.')
             self._requeue_work(wp)
 
 
@@ -390,24 +373,29 @@ class Scheduler():
         array_conf = f'0-{len(wps)-1}'  # --array=0-0 is valid
         cpus = wps[0].cpus
         time = wps[0].time
+        mem = wps[0].mem
+        partition = wps[0].partition
 
-        logger.debug(f'Scheduling Slurm job for {len(wps)} work packages with {cpus} cpus and a time limit of {time}...')
+        logger.debug(f'Scheduling Slurm job for {len(wps)} work packages with {cpus} cpus, {mem}MB memory, and a time limit of {time} on partition {partition}...')
 
         try:
-            job_ids = slurm.sbatch_array(
-                workfile,
+            slurm_conf = SlurmConfig(
+                time=time,
+                cpus=cpus,
+                mem=mem,
                 array=array_conf,
-                script=self.script,
-                conda_env=self.conda_env,
-                cpus=wps[0].cpus,
-                time=wps[0].time,
-                qos=wps[0].qos,
-                partition=wps[0].partition,
+                partition=partition,
+                account=self.account,
                 job_name=self.job_name,
                 log_dir=self.task_log_dir,
-                account=self.account,
                 error='%A_%a.stderr',
-                output='%A_%a.stdout'
+                output='%A_%a.stdout',
+            )
+            job_ids = slurm.sbatch_array(
+                workfile,
+                script=self.script,
+                conda_env=self.conda_env,
+                slurm_conf=slurm_conf,
                 )
 
             for wp in wps:
@@ -531,7 +519,7 @@ class Scheduler():
     def _groupby_resource_allocation(self, wps):
         groups = defaultdict(list)
         for wp in wps:
-            groups[(wp.cpus, wp.time)].append(wp)
+            groups[(wp.cpus, wp.mem, wp.time, wp.partition)].append(wp)
 
-        logger.debug(f'Work was grouped in {len(list(groups.values()))} groups with {list(groups.keys())} cpu & timeout configurations respectively.')
+        logger.debug(f'Work was grouped in {len(list(groups.values()))} groups with {list(groups.keys())} cpu, memory, timeout & partition configurations respectively.')
         yield from groups.values()

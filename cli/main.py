@@ -14,7 +14,7 @@ Status = Enum('STATUS', 'PENDING FAILED SUCCEEDED')
 
 @app.command()
 def status(
-        path: str = typer.Argument('work.json', help='Path to work.json file.'),
+    path: str = typer.Argument('work.json', help='Path to work.json file.'),
 ):
     """
     Show number of pending, succeeded, and failed work packages.

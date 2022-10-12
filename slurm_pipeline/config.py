@@ -104,7 +104,10 @@ properties:
                     properties:
                         cpus:
                             type: integer
-                            description: Number of CPUs to request (8GB of memory per CPU).
+                            description: Number of CPUs to request (4GB of memory per CPU).
+                        mem:
+                            type: integer
+                            description: Size of required memory in MB.
                         time:
                             type: string
                             description: "Time limit per work package (format: days-hours:min:sec)."
@@ -124,7 +127,10 @@ properties:
                                 properties:
                                     cpus:
                                         type: integer
-                                        description: Number of CPUs to request (8GB of memory per CPU).
+                                        description: Number of CPUs to request (4GB of memory per CPU).
+                                    mem:
+                                        type: integer
+                                        description: Size of required memory in MB.
                                     time:
                                         type: string
                                         description: "Time limit per work package (format: days-hours:min:sec)."

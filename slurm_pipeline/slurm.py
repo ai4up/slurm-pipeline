@@ -7,6 +7,14 @@ from pathlib import Path
 
 MAX_ARRAY_SIZE = 3000
 MAX_CPUS = 32
+MEM_PER_CPU = 4
+MAX_MEM = MAX_CPUS * MEM_PER_CPU
+MAX_BROADWELL_CPUS = 16
+MAX_BROADWELL_MEM = MAX_BROADWELL_CPUS * MEM_PER_CPU
+MAX_GPU_CPUS = 16
+MAX_GPU_MEM = 250000
+
+TEMPLATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'slurm-templates')
 
 logger = logging.getLogger(__name__)
 
@@ -44,58 +52,123 @@ class Status(Enum):
 RETRYABLE = [Status.BOOT_FAIL, Status.NODE_FAIL, Status.REQUEUED, Status.REQUEUE_FED, Status.STOPPED, Status.SUSPENDED]
 ACTIVE = [Status.PENDING, Status.RUNNING, Status.CONFIGURING, Status.COMPLETING, Status.RESIZING]
 
-def sbatch(script,
-            log_dir,
-            conda_env,
-            qos='short',
-            partition='standard',
-            time='01:00:00',
-            error='%x_%j.stderr',
-            output='%x_%j.stdout',
-            cpus=1,
-            nodes=1,
-            ntasks=1,
-            workfile='',
-            account=None,
-            array=None,
-            job_name=None,
-            mem=None,
-            sbatch_script=None):
-            # TODO: add support for other sbatch options
-            # *args,
-            # **kwargs):
+class SlurmConfig():
 
-    if (workfile or array) and sbatch_script is None:
+    def __init__(self,
+                time='01:00:00',
+                cpus=1,
+                nodes=1,
+                ntasks=1,
+                error='%x_%j.stderr',
+                output='%x_%j.stdout',
+                mem=None,
+                partition=None,
+                gres=None,
+                qos=None,
+                account=None,
+                array=None,
+                job_name=None,
+                log_dir=None,
+                ):
+
+        self.time = time
+        self.cpus = cpus
+        self.nodes = nodes
+        self.ntasks = ntasks
+        self.error = error
+        self.output = output
+        self.mem = mem
+        self.account = account
+        self.array = array
+        self.job_name = job_name
+        self.log_dir = log_dir
+
+        self.partition = partition or self._determine_partition()
+        self.gres = gres or self._determine_gres()
+        self.qos = qos or self._determine_qos()
+
+
+    def _determine_partition(self):
+        if self.mem > MAX_BROADWELL_MEM:
+            return 'gpu'
+        
+        if self.cpus > MAX_CPUS or self.mem > MAX_MEM:
+            return 'broadwell'
+
+        return 'standard'
+
+
+    def _determine_gres(self):
+        if self.partition != 'gpu':
+            return None
+        
+        if self.cpus > MAX_GPU_CPUS / 2 or self.mem > MAX_GPU_MEM / 2:
+            logger.info("Requesting more than half of the node's cpus or memory capacity, thus both GPU cards are needed.")
+            return 'gpu:v100:2'
+        else:
+            return 'gpu:v100:1'
+
+
+    def _determine_qos(self):
+        if minutes(self.time) <= 24 * 60:
+            return 'short'
+        elif minutes(self.time) <= 24 * 60 * 7:
+            return 'medium'
+        else:
+            return 'long'
+
+
+    def validate_and_adjust(self):
+        if self.cpus > MAX_BROADWELL_CPUS:
+            logger.warning(f'Requesting {self.cpus} CPUs, but max allowed is {MAX_BROADWELL_CPUS}. Reducing CPUs accordingly.')
+            self.cpus = MAX_BROADWELL_CPUS
+
+        if self.mem > MAX_GPU_MEM:
+            logger.warning(f'Requesting {self.mem}MB memory, but max allowed is {MAX_GPU_MEM}. Reducing memory accordingly.')
+            self.mem = MAX_GPU_MEM
+
+        if self.cpus > MAX_GPU_CPUS and self.mem > MAX_BROADWELL_MEM:
+            logger.warning('Resource conflict. Request exceeds max compatible resources for CPU and memory. Reducing CPUs to fit request on GPU node with high memory availability.')
+            self.cpus = MAX_GPU_CPUS
+
+
+    def to_s(self):
+        options = ''
+        options += f' --time="{self.time}"'
+        options += f' --nodes={self.nodes}'
+        options += f' --error="{self.error}"'
+        options += f' --output="{self.output}"'
+        options += f' --ntasks={self.ntasks}'
+        options += f' --cpus-per-task={self.cpus}'
+        options += f' --qos={self.qos}'
+        options += f' --partition={self.partition}'
+
+        if self.gres:
+            options += f' --gres={self.gres}'
+        if self.mem:
+            options += f' --mem={self.mem}'
+        if self.account:
+            options += f' --account={self.account}'
+        if self.array:
+            options += f' --array={self.array}'
+        if self.job_name:
+            options += f' --job-name="{self.job_name}"'
+        if self.log_dir:
+            options += f' --chdir="{self.log_dir}"'
+
+        return options
+
+
+def sbatch(script, conda_env, slurm_conf, workfile='', sbatch_script=None):    
+    if (workfile or slurm_conf.array) and sbatch_script is None:
         raise SlurmException(f'Default sbatch script does not support workfile and array configuration. Please pass a custom sbatch script.')
 
-    job_name = job_name or Path(script).stem
-    sbatch_script = sbatch_script or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'slurm-templates', 'sbatch.sh')
-
-    if cpus > MAX_CPUS:
-        logger.warning(f'Requesting {cpus} CPUs, but max allowed is {MAX_CPUS}. Reducing CPUs accordingly.')
-        cpus = MAX_CPUS
-
-    options = ''
-    options += f' --qos={qos}'
-    options += f' --time="{time}"'
-    options += f' --nodes={nodes}'
-    options += f' --error="{error}"'
-    options += f' --output="{output}"'
-    options += f' --chdir="{log_dir}"'
-    options += f' --ntasks={ntasks}'
-    options += f' --cpus-per-task={cpus}'
-    options += f' --partition={partition}'
-    options += f' --job-name="{job_name}"'
-    if mem:
-        options += f' --mem={mem}'
-    if array:
-        options += f' --array={array}'
-    if account:
-        options += f' --account={account}'
-
+    slurm_conf.validate_and_adjust()
+    options = slurm_conf.to_s()
+    sbatch_script = sbatch_script or os.path.join(TEMPLATE_PATH, 'sbatch.sh')
     cmd = f'sbatch --parsable {options} "{sbatch_script}" "{script}" "{conda_env}" {workfile}'
-    logger.debug(f'Submitting Slurm job with cmd: {cmd}')
 
+    logger.debug(f'Submitting Slurm job with cmd: {cmd}')
     p = subprocess.run(cmd, capture_output=True, shell=True)
 
     if p.returncode > 0:
@@ -105,13 +178,15 @@ def sbatch(script,
     return job_id
 
 
-def sbatch_array(workfile, array=None, **kwargs):
-    array = array or _array_conf(workfile)
-    sbatch_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'slurm-templates', 'sbatch-array.sh')
+def sbatch_array(workfile, **kwargs):
+    # generate array config based in workfile if not already part of slurm configuration
+    slurm_conf = kwargs.get('slurm_conf')
+    slurm_conf.array = slurm_conf.array or _array_conf(workfile)
+    
+    sbatch_script = os.path.join(TEMPLATE_PATH, 'sbatch-array.sh')
+    job_id = sbatch(workfile=workfile, sbatch_script=sbatch_script, **kwargs)
 
-    job_id = sbatch(workfile=workfile, array=array, sbatch_script=sbatch_script, **kwargs)
-
-    return [f'{job_id}_{array_id}' for array_id in range(int(array.split('-')[1]) + 1)]
+    return [f'{job_id}_{array_id}' for array_id in range(int(slurm_conf.array.split('-')[1]) + 1)]
 
 
 def status(job_id):
@@ -143,6 +218,11 @@ def cancel(job_id):
 
     if p.returncode > 0:
         raise SlurmException(f'Error running Slurm cmd {cmd}:\n{p.stderr.decode("UTF-8")}')
+
+
+def minutes(time_str):
+    timedelta = parse_time(time_str)
+    return round(timedelta.total_seconds() / 60)
 
 
 def parse_time(time_str):
