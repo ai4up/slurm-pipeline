@@ -61,7 +61,7 @@ class SlurmConfig():
                 ntasks=1,
                 error='%x_%j.stderr',
                 output='%x_%j.stdout',
-                mem=None,
+                mem=0,
                 partition=None,
                 gres=None,
                 qos=None,

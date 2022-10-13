@@ -32,7 +32,7 @@ class WorkPackage():
 
     Status = Enum('STATUS', 'PENDING FAILED SUCCEEDED')
 
-    def __init__(self, params, cpus, time, mem=None, partition=None):
+    def __init__(self, params, cpus, time, mem=0, partition=None):
         self.params = params
         self.cpus = cpus
         self.mem = mem
