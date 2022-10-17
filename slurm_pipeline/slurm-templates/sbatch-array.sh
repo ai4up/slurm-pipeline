@@ -11,6 +11,7 @@ WORKFILE="$3"
 module load anaconda
 module load jq
 
+source deactivate
 source activate "$CONDA_ENV"
 
 jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | python -u "$SCRIPT"
