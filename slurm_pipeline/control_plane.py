@@ -88,6 +88,7 @@ class Scheduler():
         self.job_name = job_config['name']
         self.script = job_config['script']
         self.param_files = job_config['param_files']
+        self.n = job_config['n']
         self.log_dir = os.path.join(job_config['log_dir'], f'{self.job_name}-{self._current_time()}')
 
         self.conda_env = job_config['properties']['conda_env']
@@ -451,6 +452,9 @@ class Scheduler():
         #     unprocessed_paths = [path for path in paths if not os.path.isfile(f'{path}_{self.left_over}.csv')]
         #     logger.info(f'{len(unprocessed_paths)} of {len(paths)} *_{self.left_over}.csv paths left over from previous run.')
         #     return unprocessed_paths
+
+        if self.n:
+            params = params[:self.n]
 
         return params
 
