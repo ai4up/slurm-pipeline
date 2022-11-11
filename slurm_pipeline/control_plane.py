@@ -32,7 +32,7 @@ class WorkPackage():
 
     Status = Enum('STATUS', 'PENDING FAILED SUCCEEDED')
 
-    def __init__(self, params, cpus, time, mem=0, partition=None):
+    def __init__(self, params, cpus, mem=0, time=None, partition=None):
         self.params = params
         self.cpus = cpus
         self.mem = mem
@@ -51,7 +51,7 @@ class WorkPackage():
 
     @staticmethod
     def init_failed(params, error_msg):
-        wp = WorkPackage(params, cpus=0, time='0')
+        wp = WorkPackage(params, cpus=0)
         # TODO: introduce INIT_FAILED (& ABORTED) status in order to differentiate between runtime and init failures when assessing if failure threshold has been reached
         wp.status = WorkPackage.Status.FAILED
         wp.error_msg = error_msg

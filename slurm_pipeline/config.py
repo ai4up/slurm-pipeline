@@ -104,7 +104,7 @@ properties:
                     description: Absolute path to store the logs.
                 resources:
                     type: object
-                    required: [cpus, time]
+                    required: [cpus]
                     properties:
                         cpus:
                             type: integer

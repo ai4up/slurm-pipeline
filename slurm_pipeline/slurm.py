@@ -112,12 +112,12 @@ class SlurmConfig():
     def _determine_qos(self):
         if self.partition == 'io':
             return 'io'
-        if minutes(self.time) <= 24 * 60:
-            return 'short'
-        elif minutes(self.time) <= 24 * 60 * 7:
+        if not self.time or minutes(self.time) > 24 * 60 * 7:
+            return 'long'
+        if minutes(self.time) > 24 * 60:
             return 'medium'
         else:
-            return 'long'
+            return 'short'
 
 
     def validate_and_adjust(self):
@@ -136,7 +136,6 @@ class SlurmConfig():
 
     def to_s(self):
         options = ''
-        options += f' --time="{self.time}"'
         options += f' --nodes={self.nodes}'
         options += f' --error="{self.error}"'
         options += f' --output="{self.output}"'
@@ -145,6 +144,8 @@ class SlurmConfig():
         options += f' --qos={self.qos}'
         options += f' --partition={self.partition}'
 
+        if self.time:
+            options += f' --time="{self.time}"'
         if self.gres:
             options += f' --gres={self.gres}'
         if self.mem:
@@ -232,6 +233,9 @@ def parse_time(time_str):
     Acceptable time formats include 'minutes', 'minutes:seconds', 'hours:minutes:seconds', 'days-hours', 'days-hours:minutes' and 'days-hours:minutes:seconds'.
     https://slurm.schedmd.com/sbatch.html#OPT_time
     """
+    if time_str is None:
+        return datetime.timedelta()
+
     d, h, m, s = 0, 0, 0, 0
 
     if '-' in time_str:
