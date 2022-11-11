@@ -110,6 +110,8 @@ class SlurmConfig():
 
 
     def _determine_qos(self):
+        if self.partition == 'io':
+            return 'io'
         if minutes(self.time) <= 24 * 60:
             return 'short'
         elif minutes(self.time) <= 24 * 60 * 7:
