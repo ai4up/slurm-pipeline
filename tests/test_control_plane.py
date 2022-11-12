@@ -42,7 +42,7 @@ def _mock_get_work_params(*args):
     control_plane.slurm.Status.COMPLETED,
     control_plane.slurm.Status.TIMEOUT,
     control_plane.slurm.Status.FAILED])
-@patch("slurm_pipeline.control_plane.slurm.sbatch_array")
+@patch("slurm_pipeline.control_plane.slurm.sbatch_workfile")
 def test_main(sbatch_mock, *args):
     job_id = uuid.uuid4()
     sbatch_mock.return_value = [f'{job_id}_0', f'{job_id}_1',  f'{job_id}_2']

@@ -14,7 +14,8 @@ module load jq
 source deactivate
 source activate "$CONDA_ENV"
 
-jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | python -u "$SCRIPT"
+# use first array element if SLURM_ARRAY_TASK_ID is unset or null
+jq ".[${SLURM_ARRAY_TASK_ID:-0}]" "$WORKFILE" | python -u "$SCRIPT"
 
 
 # SCRIPT MUSS ACCEPT INPUT FROM STDIN LIKE:

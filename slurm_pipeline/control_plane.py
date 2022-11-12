@@ -371,7 +371,7 @@ class Scheduler():
 
     def _submit_work(self, wps):
         workfile = self._persist_workfile(wps)
-        array_conf = f'0-{len(wps)-1}'  # --array=0-0 is valid
+        array_conf = f'0-{len(wps)-1}' if len(wps) > 1 else None
         cpus = wps[0].cpus
         time = wps[0].time
         mem = wps[0].mem
@@ -392,7 +392,7 @@ class Scheduler():
                 error='%A_%a.stderr',
                 output='%A_%a.stdout',
             )
-            job_ids = slurm.sbatch_array(
+            job_ids = slurm.sbatch_workfile(
                 workfile,
                 script=self.script,
                 conda_env=self.conda_env,
@@ -523,7 +523,11 @@ class Scheduler():
     def _groupby_resource_allocation(self, wps):
         groups = defaultdict(list)
         for wp in wps:
-            groups[(wp.cpus, wp.mem, wp.time, wp.partition)].append(wp)
+            # do not group work packages on io partition as it does not support sbatch arrays
+            if wp.partition == 'io':
+                groups[uuid.uuid4()].append(wp)
+            else:
+                groups[(wp.cpus, wp.mem, wp.time, wp.partition)].append(wp)
 
         logger.debug(f'Work was grouped in {len(list(groups.values()))} groups with {list(groups.keys())} cpu, memory, timeout & partition configurations respectively.')
         yield from groups.values()
