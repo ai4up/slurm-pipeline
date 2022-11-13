@@ -91,7 +91,7 @@ class SlurmConfig():
     def _determine_partition(self):
         if self.mem > MAX_BROADWELL_MEM:
             return 'gpu'
-        
+
         if self.cpus > MAX_CPUS or self.mem > MAX_MEM:
             return 'broadwell'
 
@@ -182,13 +182,10 @@ def sbatch(script, conda_env, slurm_conf, workfile='', sbatch_script=None):
 
 
 def sbatch_workfile(workfile, **kwargs):
-    # generate array config based in workfile if not already part of slurm configuration
-    slurm_conf = kwargs.get('slurm_conf')
-    slurm_conf.array = slurm_conf.array or _array_conf(workfile)
     sbatch_script = os.path.join(TEMPLATE_PATH, 'sbatch-workfile.sh')
-
     job_id = sbatch(workfile=workfile, sbatch_script=sbatch_script, **kwargs)
 
+    slurm_conf = kwargs.get('slurm_conf')
     if slurm_conf.array:
         return [f'{job_id}_{array_id}' for array_id in range(int(slurm_conf.array.split('-')[1]) + 1)]
 
@@ -262,8 +259,3 @@ def parse_time(time_str):
         s = t[2]
 
     return datetime.timedelta(days=int(d), hours=int(h), minutes=int(m), seconds=int(s))
-
-
-def _array_conf(workfile):
-    n_lines = sum(1 for line in open(workfile))
-    return f'0-{n_lines-1}' if n_lines > 1 else None
