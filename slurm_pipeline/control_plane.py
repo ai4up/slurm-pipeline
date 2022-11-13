@@ -372,6 +372,7 @@ class Scheduler():
     def _submit_work(self, wps):
         workfile = self._persist_workfile(wps)
         array_conf = f'0-{len(wps)-1}' if len(wps) > 1 else None
+        log_file_id = '%A_%a' if array_conf else '%A'
         cpus = wps[0].cpus
         time = wps[0].time
         mem = wps[0].mem
@@ -389,8 +390,8 @@ class Scheduler():
                 account=self.account,
                 job_name=self.job_name,
                 log_dir=self.task_log_dir,
-                error='%A_%a.stderr',
-                output='%A_%a.stdout',
+                error=f'{log_file_id}.stderr',
+                output=f'{log_file_id}.stdout',
             )
             job_ids = slurm.sbatch_workfile(
                 workfile,
