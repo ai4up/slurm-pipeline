@@ -1,9 +1,9 @@
 import os
+import json
 import datetime
 import subprocess
 import logging
 from enum import Enum
-from pathlib import Path
 
 MAX_ARRAY_SIZE = 3000
 MAX_CPUS = 16
@@ -133,6 +133,9 @@ class SlurmConfig():
             logger.warning('Resource conflict. Request exceeds max compatible resources for CPU and memory. Reducing CPUs to fit request on GPU node with high memory availability.')
             self.cpus = MAX_GPU_CPUS
 
+        if self.array and self.partition == 'io':
+            self.array = None # schedule tasks subsequently on io partition as it does not support sbatch arrays
+
 
     def to_s(self):
         options = ''
@@ -189,7 +192,7 @@ def sbatch_workfile(workfile, **kwargs):
     if slurm_conf.array:
         return [f'{job_id}_{array_id}' for array_id in range(int(slurm_conf.array.split('-')[1]) + 1)]
 
-    return [job_id]
+    return [job_id] * n_wps(workfile)
 
 
 def status(job_id):
@@ -221,6 +224,11 @@ def cancel(job_id):
 
     if p.returncode > 0:
         raise SlurmException(f'Error running Slurm cmd {cmd}:\n{p.stderr.decode("UTF-8")}')
+
+
+def n_wps(workfile):
+    with open(workfile) as f:
+        return len(json.load(f))
 
 
 def minutes(time_str):

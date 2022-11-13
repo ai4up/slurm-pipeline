@@ -524,11 +524,7 @@ class Scheduler():
     def _groupby_resource_allocation(self, wps):
         groups = defaultdict(list)
         for wp in wps:
-            # do not group work packages on io partition as it does not support sbatch arrays
-            if wp.partition == 'io':
-                groups[uuid.uuid4()].append(wp)
-            else:
-                groups[(wp.cpus, wp.mem, wp.time, wp.partition)].append(wp)
+            groups[(wp.cpus, wp.mem, wp.time, wp.partition)].append(wp)
 
         logger.debug(f'Work was grouped in {len(list(groups.values()))} groups with {list(groups.keys())} cpu, memory, timeout & partition configurations respectively.')
         yield from groups.values()
