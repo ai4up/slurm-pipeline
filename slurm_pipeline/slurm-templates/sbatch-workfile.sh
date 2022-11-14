@@ -17,9 +17,21 @@ source activate "$CONDA_ENV"
 if [ -n "$SLURM_ARRAY_TASK_ID" ]; then
     jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | python -u "$SCRIPT"
 else
-    jq -c '.[]' "$WORKFILE" | while read params; do
+    for params in $(jq -c '.[]' "$WORKFILE"); do
+        # start and background process
         python -u "$SCRIPT" <<< $params &
     done
+
+    FAIL=0
+    # wait for all backgrounded processes to finish
+    for job in $(jobs -p); do
+        wait $job || let "FAIL+=1"
+    done
+
+    if [ "$FAIL" != "0" ]; then
+        echo "${FAIL} work packages failed."
+        exit 1
+    fi
 fi
 
 # SCRIPT MUSS ACCEPT INPUT FROM STDIN LIKE:
