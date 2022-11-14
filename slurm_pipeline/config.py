@@ -3,6 +3,7 @@ import re
 import json
 import logging
 import textwrap
+from pathlib import Path
 
 import yaml
 import jsonschema
@@ -141,18 +142,18 @@ properties:
                                     partition:
                                         type: string
                                         description: Slurm partition.
-                            file:
+                            files:
                                 type: object
                                 required: [path]
                                 properties:
                                     path:
                                         type: string
-                                        description: Path to file to consider for special case assessment (may include variables from workfile with {{var}}).
-                                    file_size_min:
+                                        description: Path to file or directory to consider for special case assessment (may include variables from workfile with {{var}}).
+                                    size_min:
                                         type: integer
-                                        description: Minimum file size.
-                                    file_size_max:
-                                        description: Maximum file size.
+                                        description: Minimum file / directory size.
+                                    size_max:
+                                        description: Maximum file / directory size.
                                         type: integer
 
                 {textwrap.indent(SCHEMA_PROPERTIES, ' ' * 16)}
@@ -186,11 +187,11 @@ def get_resource_config(job_config, params):
 
     for sc in job_config.get('special_cases', []):
 
-        if file_config := sc.get('file'):
+        if file_config := sc.get('files'):
             path = _interpolate_variables(file_config['path'], params)
-            size = os.path.getsize(path)
-            min = file_config.get('file_size_min', 0)
-            max = file_config.get('file_size_max', float('inf'))
+            size = _files_size(path)
+            min = file_config.get('size_min', 0)
+            max = file_config.get('size_max', float('inf'))
 
             if size >= min and size <= max:
                 return {**default_resource_config, **sc['resources']}
@@ -204,6 +205,13 @@ def _interpolate_variables(path, params):
         path = path.replace('{{%s}}' % v, params.get(v))
 
     return path
+
+
+def _files_size(path):
+    if os.path.isdir(path):
+        return sum(f.stat().st_size for f in Path(path).glob('**/*') if f.is_file())
+
+    return os.path.getsize(path)
 
 
 def _load_config_yaml(path):

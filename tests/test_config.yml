@@ -11,9 +11,9 @@ jobs:
       time: 02:00:00
     special_cases:
       - name: small-cities
-        file:
+        files:
           path: geom.csv
-          file_size_max: 20000
+          size_max: 20000
         resources:
           cpus: 1
           time: 01:00:00
