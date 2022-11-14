@@ -18,7 +18,7 @@ if [ -n "$SLURM_ARRAY_TASK_ID" ]; then
     jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | python -u "$SCRIPT"
 else
     jq -c '.[]' "$WORKFILE" | while read params; do
-        python -u "$SCRIPT" <<< $params
+        python -u "$SCRIPT" <<< $params &
     done
 fi
 
