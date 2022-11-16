@@ -17,9 +17,15 @@ source deactivate
 source activate "$CONDA_ENV"
 
 if [ -n "$SLURM_ARRAY_TASK_ID" ]; then
-    jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | mprof run --output "mprofile_${SLURM_JOBID}_${SLURM_ARRAY_TASK_ID}.dat" "$SCRIPT"
+    if [ -x "$(command -v mprof)" ]; then
+        echo "Profiling memory usage of Python process..."
+        jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | mprof run --output "mprofile_${SLURM_JOBID}_${SLURM_ARRAY_TASK_ID}.dat" "$SCRIPT"
+    else
+        jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | python -u "$SCRIPT"
+    fi
 else
     i=0
+    echo "Job array not specified. Iterating over work packages in workfile concurrently (max ${MAX_CONCURRENT_JOBS} in parallel)."
     for params in $(jq -c '.[]' "$WORKFILE"); do
 
         # process at most 5 work packages concurrently
@@ -27,8 +33,16 @@ else
             sleep 2
         done
 
-        # start and background process; write memory usage to .dat file; write stdout and stderr to log file
-        mprof run --output "mprofile_${SLURM_JOBID}_${i}.dat" "$SCRIPT" <<< $params &
+        # start and background process
+        # write memory usage to .dat file if mprof is installed
+        # write stdout and stderr of each process to separate log file
+        # as tee only captures stdout, stderr and stdout are swapped with 3>&1 1>&2 2>&3
+        if [ -x "$(command -v mprof)" ]; then
+            echo "Profiling memory usage of Python process..."
+            (mprof run --output "mprofile_${SLURM_JOBID}_${i}.dat" "$SCRIPT" <<< $params | tee "${SLURM_JOBID}_${i}.stdout") 3>&1 1>&2 2>&3 | tee "${SLURM_JOBID}_${i}.stderr" &
+        else
+            (python -u "$SCRIPT" <<< $params | tee "${SLURM_JOBID}_${i}.stdout") 3>&1 1>&2 2>&3 | tee "${SLURM_JOBID}_${i}.stderr" &
+        fi
 
         ((i++))
     done

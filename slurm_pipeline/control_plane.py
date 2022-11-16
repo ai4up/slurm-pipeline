@@ -405,8 +405,8 @@ class Scheduler():
             for i, wp in enumerate(wps):
                 wp.n_tries += 1
                 wp.job_id = job_ids.pop(0)
-                wp.stdout_log = os.path.join(self.task_log_dir, f'{wp.job_id}.stdout')
-                wp.stderr_log = os.path.join(self.task_log_dir, f'{wp.job_id}.stderr')
+                wp.stdout_log = os.path.join(self.task_log_dir, f'{wp.job_id}_{i}.stdout')
+                wp.stderr_log = os.path.join(self.task_log_dir, f'{wp.job_id}_{i}.stderr')
                 wp.mem_profile = os.path.join(self.task_log_dir, f'mprofile_{wp.job_id}_{i}.dat') # TODO add support for bash concurrent scheudling
 
         except SlurmException as e:
