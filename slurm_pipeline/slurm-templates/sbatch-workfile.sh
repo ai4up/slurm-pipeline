@@ -44,7 +44,7 @@ else
             (python -u "$SCRIPT" <<< $params | tee "${SLURM_JOBID}_${i}.stdout") 3>&1 1>&2 2>&3 | tee "${SLURM_JOBID}_${i}.stderr" &
         fi
 
-        ((i++))
+        i=$((i+1))
     done
 
     # wait for all backgrounded processes to finish
