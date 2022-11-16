@@ -5,3 +5,4 @@ slackclient
 typer
 tabulate
 pandas
+memory_profiler

@@ -45,6 +45,7 @@ class WorkPackage():
         self.error_msg = None
         self.stderr_log = None
         self.stdout_log = None
+        self.mem_profile = None
         self.job_id = None
         self.old_job_ids = []
 
@@ -72,6 +73,7 @@ class WorkPackage():
             'job_id': self.job_id,
             'stdout_log': self.stdout_log,
             'stderr_log': self.stderr_log,
+            'mem_profile': self.mem_profile,
             'error_msg': self.error_msg,
             'old_job_ids': self.old_job_ids
         }
@@ -400,11 +402,12 @@ class Scheduler():
                 slurm_conf=slurm_conf,
                 )
 
-            for wp in wps:
+            for i, wp in enumerate(wps):
                 wp.n_tries += 1
                 wp.job_id = job_ids.pop(0)
                 wp.stdout_log = os.path.join(self.task_log_dir, f'{wp.job_id}.stdout')
                 wp.stderr_log = os.path.join(self.task_log_dir, f'{wp.job_id}.stderr')
+                wp.mem_profile = os.path.join(self.task_log_dir, f'mprofile_{wp.job_id}_{i}.dat') # TODO add support for bash concurrent scheudling
 
         except SlurmException as e:
             logger.critical(f'Failed to submit Slurm job array: {e}')
