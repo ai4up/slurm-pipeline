@@ -178,7 +178,6 @@ class Scheduler():
         logger.info(f'Monitoring remaining {len(self.scheduled_work())}/{self.n_wps} work packages...')
 
         for wp in self.scheduled_work():
-            self._monitor_mem(wp)
 
             try:
                 s = wp.slurm_status = slurm.status(wp.job_id)
@@ -211,6 +210,10 @@ class Scheduler():
 
             else:
                 self._process_unknown_status(wp)
+
+            self._monitor_mem(wp)
+
+        self._persist_work_status()
 
         if self._runtime_failure_threshold_reached():
             logger.critical(f'Failure threshold of {self.failure_threshold} reached. Cancelling all Slurm jobs and aborting the pipeline run...')
@@ -306,7 +309,6 @@ class Scheduler():
     def _process_success(self, wp):
         wp.status = WorkPackage.Status.SUCCEEDED
         logger.debug(f'Job {wp.name} ({wp.job_id}) succeeded. Removing job from queue.')
-        self._persist_work_status()
 
 
     def _process_failure(self, wp):
@@ -357,7 +359,6 @@ class Scheduler():
         if error_msg:
             wp.error_msg = error_msg
         wp.status = WorkPackage.Status.FAILED
-        self._persist_work_status()
 
 
     def _panic(self):
@@ -414,6 +415,7 @@ class Scheduler():
                 conda_env=self.conda_env,
                 slurm_conf=slurm_conf,
                 )
+            logger.info(f'Successfully scheduled Slurm job(s): {job_ids}')
 
             for i, wp in enumerate(wps):
                 wp.n_tries += 1
