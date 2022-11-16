@@ -205,7 +205,7 @@ def status(job_id):
         raise SlurmException(f'Error running Slurm cmd {cmd}:\n{p.stderr.decode("UTF-8")}')
 
     try:
-        s = p.stdout.decode('UTF-8').splitlines()[0].strip()
+        s = p.stdout.decode('UTF-8').splitlines()[0].split(maxsplit=1)[0]
     except IndexError:
         logger.warning(f'Could not determine status for job {job_id}. Maybe the job has not been submitted yet?')
         return Status.PENDING
