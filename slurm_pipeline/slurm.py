@@ -177,8 +177,11 @@ def sbatch(script, conda_env, slurm_conf, workfile='', sbatch_script=None):
     logger.debug(f'Submitting Slurm job with cmd: {cmd}')
     p = subprocess.run(cmd, capture_output=True, shell=True)
 
+    stderr = p.stderr.decode('UTF-8')
+    logger.info(f'stderr: {stderr}')
+
     if p.returncode > 0:
-        raise SlurmException(f'Error running Slurm cmd {cmd}:\n{p.stderr.decode("UTF-8")}')
+        raise SlurmException(f'Error running Slurm cmd {cmd}:\n{stderr}')
 
     job_id = p.stdout.decode('UTF-8').strip()
     return job_id
