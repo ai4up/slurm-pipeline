@@ -6,6 +6,7 @@ import time
 import shutil
 import logging
 import datetime
+import subprocess
 from enum import Enum
 from pathlib import Path
 from collections import defaultdict, Counter
@@ -46,6 +47,7 @@ class WorkPackage():
         self.stderr_log = None
         self.stdout_log = None
         self.mem_profile = None
+        self.max_mem = None
         self.job_id = None
         self.old_job_ids = []
 
@@ -74,6 +76,7 @@ class WorkPackage():
             'stdout_log': self.stdout_log,
             'stderr_log': self.stderr_log,
             'mem_profile': self.mem_profile,
+            'max_mem': self.max_mem,
             'error_msg': self.error_msg,
             'old_job_ids': self.old_job_ids
         }
@@ -175,6 +178,7 @@ class Scheduler():
         logger.info(f'Monitoring remaining {len(self.scheduled_work())}/{self.n_wps} work packages...')
 
         for wp in self.scheduled_work():
+            self._monitor_mem(wp)
 
             try:
                 s = wp.slurm_status = slurm.status(wp.job_id)
@@ -288,6 +292,15 @@ class Scheduler():
 
     def failed_work(self):
         return [wp for wp in self.work_packages if wp.status == WorkPackage.Status.FAILED]
+
+
+    def _monitor_mem(self, wp):
+        cmd = f'mprof peak {wp.mem_profile}'
+        p = subprocess.run(cmd, capture_output=True, shell=True)
+        if p.returncode == 0:
+            wp.max_mem = p.stdout.decode('UTF-8').split()[1]
+        else:
+            logger.info(f'Determining memory peak not possible. mprof is not installed or cmd failed for other reason: {p.stderr.decode("UTF-8")}.')
 
 
     def _process_success(self, wp):
@@ -407,7 +420,7 @@ class Scheduler():
                 wp.job_id = job_ids.pop(0)
                 wp.stdout_log = os.path.join(self.task_log_dir, f'{wp.job_id}_{i}.stdout')
                 wp.stderr_log = os.path.join(self.task_log_dir, f'{wp.job_id}_{i}.stderr')
-                wp.mem_profile = os.path.join(self.task_log_dir, f'mprofile_{wp.job_id}_{i}.dat') # TODO add support for bash concurrent scheudling
+                wp.mem_profile = os.path.join(self.task_log_dir, f'mprofile_{wp.job_id}_{i}.dat')
 
         except SlurmException as e:
             logger.critical(f'Failed to submit Slurm job array: {e}')
