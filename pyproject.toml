@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "slurm-pipeline"
+version = "0.1.0"
+description = "A thin python wrapper for robust and scalable Slurm job scheduling."
+authors = ["Florian Nachtigall <nachtigall.florian@gmail.com>"]
+license = "MIT License"
+packages = [{include = "slurm_pipeline"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pyyaml = "^6.0"
+pytest = "^7.2.0"
+jsonschema = "^4.17.0"
+slackclient = "^2.9.4"
+typer-cli = "^0.0.12"
+tabulate = "^0.9.0"
+pandas = "^1.5.1"
+memory-profiler = "^0.61.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+sp = "slurm_pipeline.cli.cli:main"
+slurm-pipeline = "slurm_pipeline.cli.cli:main"

@@ -9,11 +9,19 @@ import pandas as pd
 import tabulate
 
 from slurm_pipeline import slurm
+import slurm_pipeline.config as pipeline_config
 from slurm_pipeline.slurm import SlurmConfig
 
 STATE_FILE = os.path.expanduser(os.path.join('~', '.slurm-pipeline'))
+PROJECT_PATH = Path(__file__).parent.parent.parent.resolve()
+
 app = typer.Typer()
 Status = Enum('STATUS', 'PENDING FAILED SUCCEEDED')
+
+
+def main():
+    app()
+
 
 @app.command()
 def start(
@@ -32,14 +40,12 @@ def start(
         log_dir=log_dir,
         error='control_plane.stderr',
         output='control_plane.stdout',
-        env_vars='PYTHONPATH=/p/projects/eubucco/slurm-pipeline',
+        env_vars=f'PYTHONPATH={PROJECT_PATH}',
     )
     job_id = slurm.sbatch(
-        # script=os.path.join(Path(__file__).parent.absolute(), 'slurm-pipeline', 'main.py'),
-        script='slurm-pipeline.main',
+        script='slurm_pipeline.main',
         conda_env=env,
         slurm_conf=slurm_conf,
-        sbatch_script=os.path.join(slurm.TEMPLATE_PATH, 'sbatch.sh'),
         args=config
         )
 
@@ -172,7 +178,7 @@ def _cli_state():
 
 def _config():
     config_path = _cli_state().get('config')
-    return _load(config_path)
+    return pipeline_config.load(config_path)
 
 
 def _newest_folder(path):
@@ -215,4 +221,4 @@ def _stdout_log(wp):
 
 
 if __name__ == '__main__':
-    app()
+    main()
