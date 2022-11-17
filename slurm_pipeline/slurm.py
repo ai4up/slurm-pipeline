@@ -169,14 +169,14 @@ class SlurmConfig():
         return options
 
 
-def sbatch(script, conda_env, slurm_conf, workfile='', sbatch_script=None):
+def sbatch(script, conda_env, slurm_conf, args='', workfile='', sbatch_script=None):
     if (workfile or slurm_conf.array) and sbatch_script is None:
         raise SlurmException(f'Default sbatch script does not support workfile and array configuration. Please pass a custom sbatch script.')
 
     slurm_conf.validate_and_adjust()
     options = slurm_conf.to_s()
     sbatch_script = sbatch_script or os.path.join(TEMPLATE_PATH, 'sbatch.sh')
-    cmd = f'sbatch --parsable {options} "{sbatch_script}" "{script}" "{conda_env}" {workfile}'
+    cmd = f'sbatch --parsable {options} "{sbatch_script}" "{conda_env}" "{script}" {args or workfile}'
 
     logger.debug(f'Submitting Slurm job with cmd: {cmd}')
     p = subprocess.run(cmd, capture_output=True, shell=True)

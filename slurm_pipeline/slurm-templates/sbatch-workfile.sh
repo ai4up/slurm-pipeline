@@ -6,8 +6,8 @@ pwd; hostname; date
 
 MAX_CONCURRENT_JOBS=5
 
-SCRIPT="$1"
-CONDA_ENV="$2"
+CONDA_ENV="$1"
+SCRIPT="$2"
 WORKFILE="$3"
 
 module load anaconda
