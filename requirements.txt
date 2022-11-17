@@ -2,7 +2,7 @@ pyyaml
 pytest
 jsonschema
 slackclient
-typer
+typer-cli
 tabulate
 pandas
 memory_profiler

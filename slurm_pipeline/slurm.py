@@ -69,6 +69,7 @@ class SlurmConfig():
                 array=None,
                 job_name=None,
                 log_dir=None,
+                env_vars=None,
                 ):
 
         self.time = time
@@ -82,6 +83,7 @@ class SlurmConfig():
         self.array = array
         self.job_name = job_name
         self.log_dir = log_dir
+        self.env_vars = env_vars
 
         self.partition = partition or self._determine_partition()
         self.gres = gres or self._determine_gres()
@@ -165,6 +167,8 @@ class SlurmConfig():
             options += f' --job-name="{self.job_name}"'
         if self.log_dir:
             options += f' --chdir="{self.log_dir}"'
+        if self.env_vars:
+            options += f' --export=ALL,{self.env_vars}'
 
         return options
 
