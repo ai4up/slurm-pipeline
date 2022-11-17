@@ -298,12 +298,16 @@ class Scheduler():
 
 
     def _monitor_mem(self, wp):
+        if not wp.mem_profile or not os.path.isfile(wp.mem_profile):
+            logger.debug(f'No memory profile file found for work package. Not scheduled yet or mprof is not installed')
+            return
+
         cmd = f'mprof peak {wp.mem_profile}'
         p = subprocess.run(cmd, capture_output=True, shell=True)
         if p.returncode == 0:
             wp.max_mem = p.stdout.decode('UTF-8').split()[1]
         else:
-            logger.info(f'Determining memory peak not possible. mprof is not installed or cmd failed for other reason: {p.stderr.decode("UTF-8")}.')
+            logger.info(f'Determining memory peak not possible. mprof cmd failed with: {p.stderr.decode("UTF-8")}')
 
 
     def _process_success(self, wp):
