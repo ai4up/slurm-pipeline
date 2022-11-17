@@ -413,17 +413,17 @@ class Scheduler():
                 error=f'{log_file_id}.stderr',
                 output=f'{log_file_id}.stdout',
             )
-            job_ids = slurm.sbatch_workfile(
+            job_id, task_ids = slurm.sbatch_workfile(
                 workfile,
                 script=self.script,
                 conda_env=self.conda_env,
                 slurm_conf=slurm_conf,
                 )
-            logger.info(f'Successfully scheduled Slurm job(s): {job_ids}')
+            logger.info(f'Successfully scheduled Slurm job {job_id} with array tasks {task_ids}')
 
             for i, wp in enumerate(wps):
                 wp.n_tries += 1
-                wp.job_id = job_ids.pop(0)
+                wp.job_id = task_ids.pop(0) if task_ids else job_id
                 wp.stdout_log = os.path.join(self.task_log_dir, f'{wp.job_id}_{i}.stdout')
                 wp.stderr_log = os.path.join(self.task_log_dir, f'{wp.job_id}_{i}.stderr')
                 wp.mem_profile = os.path.join(self.task_log_dir, f'mprofile_{wp.job_id}_{i}.dat')

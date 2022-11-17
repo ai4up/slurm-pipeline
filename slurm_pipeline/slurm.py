@@ -120,6 +120,10 @@ class SlurmConfig():
             return 'short'
 
 
+    def array_size(self):
+        return int(self.array.split('-')[1]) + 1 if self.array else 0
+
+
     def validate_and_adjust(self):
         if self.cpus > MAX_BROADWELL_CPUS:
             logger.warning(f'Requesting {self.cpus} CPUs, but max allowed is {MAX_BROADWELL_CPUS}. Reducing CPUs accordingly.')
@@ -192,10 +196,9 @@ def sbatch_workfile(workfile, **kwargs):
     job_id = sbatch(workfile=workfile, sbatch_script=sbatch_script, **kwargs)
 
     slurm_conf = kwargs.get('slurm_conf')
-    if slurm_conf.array:
-        return [f'{job_id}_{array_id}' for array_id in range(int(slurm_conf.array.split('-')[1]) + 1)]
+    task_ids = [f'{job_id}_{array_id}' for array_id in range(slurm_conf.array_size())]
 
-    return [job_id] * n_wps(workfile)
+    return job_id, task_ids
 
 
 def status(job_id):
