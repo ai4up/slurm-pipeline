@@ -232,11 +232,6 @@ def cancel(job_id):
         raise SlurmException(f'Error running Slurm cmd {cmd}:\n{p.stderr.decode("UTF-8")}')
 
 
-def n_wps(workfile):
-    with open(workfile) as f:
-        return len(json.load(f))
-
-
 def minutes(time_str):
     timedelta = parse_time(time_str)
     return round(timedelta.total_seconds() / 60)
