@@ -1,4 +1,5 @@
 import os
+import re
 import json
 from enum import Enum
 from pathlib import Path
@@ -130,6 +131,64 @@ def errors(
 
 
 @app.command()
+def stdout(
+    job: str = typer.Option(None, '--job', '-j', help='Job name.'),
+    job_id: str = typer.Option(None, '--job-id', help='Job id.'),
+    i: int = typer.Option(0, '--index', '-i', help='Index of work package.'),
+    regex: str = typer.Option(0, '--params', '-p', help='Regex pattern to search through job params. Displays first match.'),
+):
+    """
+    Show stdout log for work packages.
+    """
+    _logs(job, job_id, i, regex, stderr=False)
+
+
+@app.command()
+def stderr(
+    job: str = typer.Option(None, '--job', '-j', help='Job name.'),
+    job_id: str = typer.Option(None, '--job-id', help='Job id.'),
+    i: int = typer.Option(0, '--index', '-i', help='Index of work package.'),
+    regex: str = typer.Option(0, '--params', '-p', help='Regex pattern to search through job params. Displays first match.'),
+):
+    """
+    Show stderr log for work packages.
+    """
+    _logs(job, job_id, i, regex, stderr=True)
+
+
+def _logs(job=None, job_id=None, i=None, regex=None, stderr=True):
+    state = _work_state()
+
+    try:
+        if job_id:
+            wp = next(wp for job_state in state.values() for wp in job_state if wp['job_id'] == job_id)
+        elif job and i:
+            wp = state[job][i]
+        elif regex:
+            p = re.compile(regex)
+            wp = next(wp for job_state in state.values() for wp in job_state for param in wp['params'].values() if p.match(str(param)))
+        else:
+            typer.echo('Please provide any of the following options: params regex, job id, or job name and index.')
+            return
+
+        log = _read_logs(wp, stderr)
+
+        if not log:
+            typer.echo(f"Log file for job {wp['job_id']} is empty or does not yet exist.")
+            return
+
+        console = Console()
+        with console.pager():
+            console.print(log)
+
+    except StopIteration:
+            typer.echo('Could not find work package for given options.')
+
+    except IndexError:
+            typer.echo(f'Could not find work package for given options. Option --index={i} is out of bounds.')
+
+
+@app.command()
 def inspect_validate_ids_results(
     n: int = typer.Option(5, '-n', help='Show n cities with most errors.'),
 ):
@@ -143,7 +202,7 @@ def inspect_validate_ids_results(
     msg_on_interest = ['Nb duplicates id geom', 'Nb duplicates id attrib', 'Nb duplicates id after merge', 'Nb disagreements id_source']
     for wp in job_state:
         result = {}
-        log = _stdout_log(wp)
+        log = _read_logs(wp, stderr=False)
         result['log'] = log
         result['status'] = wp['status']
         result['country'] = wp['params']['city_path'].split('/')[6]
@@ -230,9 +289,10 @@ def _error_type(wp):
     return (wp['error_msg'] or '').split(':')[0] or None
 
 
-def _stdout_log(wp):
+def _read_logs(wp, stderr=True):
     try:
-        return Path(wp['stdout_log']).read_text()
+        log_type = 'stderr' if stderr else 'stdout'
+        return Path(wp[f'{log_type}_log']).read_text()
     except (FileNotFoundError, TypeError):
         return ''
 
