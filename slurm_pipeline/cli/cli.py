@@ -7,6 +7,7 @@ from collections import Counter
 import typer
 import pandas as pd
 import tabulate
+from rich.console import Console
 
 from slurm_pipeline import slurm
 import slurm_pipeline.config as pipeline_config
@@ -34,6 +35,7 @@ def start(
     Start the slurm pipeline.
     """
     slurm_conf = SlurmConfig(
+        job_name='control_plane',
         cpus=1,
         partition='io',
         account=account,
@@ -49,7 +51,7 @@ def start(
         args=config
         )
 
-    typer.echo(f'Control plane started. Slurm job id: {job_id}')
+    typer.echo(f'Pipeline control plane started. Slurm job id: {job_id}')
     _persist_cli_state({'config': config, 'job_id': job_id})
 
 
@@ -96,6 +98,20 @@ def status():
         typer.echo(f'PENDING: {len(_pending(state))}')
         typer.echo(f'SUCCEEDED: {len(_succeeded(state))}')
         typer.echo(f'FAILED: {len(_failed(state))}')
+
+
+@app.command()
+def work(
+    job: str = typer.Argument(..., help='Job name.'),
+):
+    """
+    Show state of work packages.
+    """
+    state = _work_state()
+    console = Console()
+    with console.pager():
+        json_job_state = json.dumps(state[job], indent=2, ensure_ascii=False)
+        console.print(json_job_state)
 
 
 @app.command()
