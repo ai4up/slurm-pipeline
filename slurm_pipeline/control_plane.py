@@ -330,7 +330,7 @@ class Scheduler():
 
     def _process_timeout(self, wp):
         wp.time = slurm.minutes(wp.time) * self.exp_backoff_factor
-        logger.error(f'Job {wp.name} ({wp.job_id}) ran into timeout. Rescheduling with {self.exp_backoff_factor}x higher timeout: {wp.time}.')
+        logger.error(f'Job {wp.name} ({wp.job_id}) ran into timeout. Trying to reschedule with {self.exp_backoff_factor}x higher timeout: {wp.time}.')
         self._requeue_work(wp)
 
 
@@ -341,7 +341,7 @@ class Scheduler():
             self._decommission(wp)
         else:
             wp.mem *= self.exp_backoff_factor
-            logger.error(f'Job {wp.name} ({wp.job_id}) ran out of memory. Rescheduling with {self.exp_backoff_factor}x higher memory: {wp.mem}.')
+            logger.error(f'Job {wp.name} ({wp.job_id}) ran out of memory. Trying to reschedule with {self.exp_backoff_factor}x higher memory: {wp.mem}.')
             self._requeue_work(wp)
 
 
@@ -380,7 +380,7 @@ class Scheduler():
 
     def _requeue_work(self, wp):
         if wp.n_tries > self.max_retries:
-            logger.error(f'Work package for {wp.params} failed to schedule after {self.max_retries} retries. Removing from queue.')
+            logger.error(f'Max retries reached ({wp.n_tries-1}/{self.max_retries}). Removing work package for {wp.params} from queue.')
             self._decommission(wp)
             return
 

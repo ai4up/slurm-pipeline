@@ -100,6 +100,27 @@ def test_io_scheduling(sbatch_mock, *args):
     assert f'{job_id}_1' in failed_work[1]['stderr_log']
 
 
+@patch.object(control_plane.Scheduler, '_get_work_params', _mock_get_work_params)
+@patch.object(control_plane.Scheduler, '_persist_workfile')
+@patch("slurm_pipeline.control_plane.time.sleep")
+@patch("slurm_pipeline.control_plane.config.get_resource_config", return_value={'cpus': 1, 'time': '01:00:00'})
+@patch("slurm_pipeline.control_plane.slurm.status", return_value=control_plane.slurm.Status.OUT_OF_MEMORY)
+@patch("slurm_pipeline.control_plane.slurm.sbatch_workfile")
+def test_retry(sbatch_mock, *args):
+    sbatch_mock.return_value = 'some-job_id', []
+
+    conf = _test_job_config()
+    max_retries = 3
+    conf['properties']['max_retries'] = max_retries
+    scheduler = control_plane.Scheduler(conf)
+    scheduler.main()
+
+    # as the resource config is identical for all work packages,
+    # only one job with multiple tasks will be scheduled
+    sbatch_calls = sbatch_mock.call_args_list
+    assert len(sbatch_calls) == max_retries + 1
+
+
 def test_groupby_resource_allocation():
     wp1 = control_plane.WorkPackage({'city': 'city_1'}, cpus=1, time='01:00:00')
     wp2 = control_plane.WorkPackage({'city': 'city_2'}, cpus=2, time='02:00:00')
