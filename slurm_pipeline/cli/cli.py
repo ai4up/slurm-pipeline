@@ -38,6 +38,7 @@ def start(
         job_name='control_plane',
         cpus=1,
         partition='io',
+        time=None,
         account=account,
         log_dir=log_dir,
         error='control_plane.stderr',

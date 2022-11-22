@@ -55,13 +55,13 @@ ACTIVE = [Status.PENDING, Status.RUNNING, Status.CONFIGURING, Status.COMPLETING,
 class SlurmConfig():
 
     def __init__(self,
-                time='01:00:00',
                 cpus=1,
                 nodes=1,
                 ntasks=1,
                 error='%x_%j.stderr',
                 output='%x_%j.stdout',
                 mem=0,
+                time=None,
                 partition=None,
                 gres=None,
                 qos=None,
@@ -72,13 +72,13 @@ class SlurmConfig():
                 env_vars=None,
                 ):
 
-        self.time = time
         self.cpus = cpus
         self.nodes = nodes
         self.ntasks = ntasks
         self.error = error
         self.output = output
         self.mem = mem
+        self.time = time
         self.account = account
         self.array = array
         self.job_name = job_name
