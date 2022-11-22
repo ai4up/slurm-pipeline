@@ -2,6 +2,7 @@ import uuid
 import random
 import json
 from os import path
+from pathlib import Path
 from unittest.mock import patch
 
 
@@ -15,13 +16,18 @@ def _test_job_config():
     return config.load(conf_path)['jobs'][0]
 
 
+def _newest_folder(dir_path):
+    return max(Path(dir_path).glob('*/'), key=path.getmtime)
+
+
 def _results():
     test_dir = path.dirname(path.realpath(__file__))
+    job_log_dir = _newest_folder(path.join(test_dir, 'logs'))
 
-    with open(path.join(test_dir, 'logs', 'succeeded-work.json'), 'r') as f:
+    with open(path.join(job_log_dir, 'succeeded-work.json'), 'r') as f:
         succeeded_work = json.load(f)
 
-    with open(path.join(test_dir, 'logs', 'failed-work.json'), 'r') as f:
+    with open(path.join(job_log_dir, 'failed-work.json'), 'r') as f:
         failed_work = json.load(f)
 
     return succeeded_work, failed_work
@@ -40,12 +46,40 @@ def _mock_get_work_params(*args):
     {'cpus': 2, 'time': '02:00:00'}])
 @patch("slurm_pipeline.control_plane.slurm.status", side_effect=[
     control_plane.slurm.Status.COMPLETED,
-    control_plane.slurm.Status.TIMEOUT,
-    control_plane.slurm.Status.FAILED])
+    control_plane.slurm.Status.FAILED,
+    control_plane.slurm.Status.FAILED,
+    ])
 @patch("slurm_pipeline.control_plane.slurm.sbatch_workfile")
 def test_main(sbatch_mock, *args):
-    job_id = uuid.uuid4()
-    sbatch_mock.return_value = [f'{job_id}_0', f'{job_id}_1',  f'{job_id}_2']
+    sbatch_mock.return_value = 'some-job_id', []
+
+    scheduler = control_plane.Scheduler(_test_job_config())
+    scheduler.main()
+
+    sbatch_calls = sbatch_mock.call_args_list
+    assert len(sbatch_calls) == 2
+    assert sbatch_calls[0].kwargs['slurm_conf'].time == '01:00:00'
+    assert sbatch_calls[0].kwargs['slurm_conf'].cpus == 1
+    assert sbatch_calls[1].kwargs['slurm_conf'].time == '02:00:00'
+    assert sbatch_calls[1].kwargs['slurm_conf'].cpus == 2
+
+
+@patch.object(control_plane.Scheduler, '_get_work_params', _mock_get_work_params)
+@patch.object(control_plane.Scheduler, '_persist_workfile')
+@patch("slurm_pipeline.control_plane.time.sleep")
+@patch("slurm_pipeline.control_plane.config.get_resource_config", side_effect=[
+    {'cpus': 1, 'time': '01:00:00', 'partition': 'io'},
+    {'cpus': 2, 'time': '02:00:00', 'partition': 'io'},
+    {'cpus': 2, 'time': '02:00:00', 'partition': 'io'}])
+@patch("slurm_pipeline.control_plane.slurm.status", side_effect=[
+    control_plane.slurm.Status.COMPLETED,
+    control_plane.slurm.Status.FAILED,
+    control_plane.slurm.Status.FAILED,
+    ])
+@patch("slurm_pipeline.control_plane.slurm.sbatch_workfile")
+def test_io_scheduling(sbatch_mock, *args):
+    job_id = str(uuid.uuid4())
+    sbatch_mock.return_value = job_id, []
 
     scheduler = control_plane.Scheduler(_test_job_config())
     scheduler.main()
@@ -53,14 +87,17 @@ def test_main(sbatch_mock, *args):
     succeeded_work, failed_work = _results()
     sbatch_calls = sbatch_mock.call_args_list
     assert len(sbatch_calls) == 2
-    assert sbatch_calls[0].kwargs['time'] == '01:00:00'
-    assert sbatch_calls[0].kwargs['cpus'] == 1
-    assert sbatch_calls[1].kwargs['time'] == '02:00:00'
-    assert sbatch_calls[1].kwargs['cpus'] == 2
+    assert sbatch_calls[0].kwargs['slurm_conf'].time == '01:00:00'
+    assert sbatch_calls[0].kwargs['slurm_conf'].cpus == 1
+    assert sbatch_calls[1].kwargs['slurm_conf'].time == '02:00:00'
+    assert sbatch_calls[1].kwargs['slurm_conf'].cpus == 2
 
-    assert succeeded_work[0]['job_id'] == f'{job_id}_0'
-    assert failed_work[0]['job_id'] == f'{job_id}_1'
-    assert failed_work[1]['job_id'] == f'{job_id}_2'
+    assert succeeded_work[0]['job_id'] == job_id
+    assert failed_work[0]['job_id'] == job_id
+    assert failed_work[1]['job_id'] == job_id
+    assert f'{job_id}_0' in succeeded_work[0]['stderr_log']
+    assert f'{job_id}_0' in failed_work[0]['stderr_log']
+    assert f'{job_id}_1' in failed_work[1]['stderr_log']
 
 
 def test_groupby_resource_allocation():

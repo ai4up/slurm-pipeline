@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from slurm_pipeline import slurm
+from slurm_pipeline.slurm import SlurmConfig
 
 
 @patch('slurm_pipeline.slurm.subprocess.run', return_value=MagicMock(**{'stdout.decode.return_value': 'PENDING', 'returncode': 0}))
@@ -20,14 +21,13 @@ def test_status_invalid(_):
     assert 'some-error' in str(exc.value)
 
 
-@pytest.mark.parametrize('sbatch_kwargs', [{'workfile': 'some-workfile'}, {'array': '0-2'}])
-def test_sbatch_inconsistent_params(sbatch_kwargs):
+def test_sbatch_inconsistent_params():
     with pytest.raises(Exception) as exc:
         slurm.sbatch(script='some-script',
-        log_dir='some-log-dir',
-        conda_env='some-conda-env',
-        **sbatch_kwargs
-        )
+            slurm_conf=SlurmConfig(array='0-2'),
+            conda_env='some-conda-env',
+            workfile='some-workfile',
+            )
 
     assert 'Please pass a custom sbatch script.' in str(exc.value)
 
