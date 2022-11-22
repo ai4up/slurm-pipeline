@@ -422,11 +422,17 @@ class Scheduler():
             logger.info(f'Successfully scheduled Slurm job {job_id} with array tasks {task_ids}')
 
             for i, wp in enumerate(wps):
+                if task_ids:
+                    wp.job_id = task_ids.pop(0)
+                    file_id = wp.job_id
+                else:
+                    wp.job_id = job_id
+                    file_id = f'{job_id}_{i}'
+
+                wp.stdout_log = os.path.join(self.task_log_dir, f'{file_id}.stdout')
+                wp.stderr_log = os.path.join(self.task_log_dir, f'{file_id}.stderr')
+                wp.mem_profile = os.path.join(self.task_log_dir, f'mprofile_{file_id}.dat')
                 wp.n_tries += 1
-                wp.job_id = task_ids.pop(0) if task_ids else job_id
-                wp.stdout_log = os.path.join(self.task_log_dir, f'{wp.job_id}_{i}.stdout')
-                wp.stderr_log = os.path.join(self.task_log_dir, f'{wp.job_id}_{i}.stderr')
-                wp.mem_profile = os.path.join(self.task_log_dir, f'mprofile_{wp.job_id}_{i}.dat')
 
         except SlurmException as e:
             logger.critical(f'Failed to submit Slurm job array: {e}')
