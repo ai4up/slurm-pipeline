@@ -19,7 +19,7 @@ source activate "$CONDA_ENV"
 if [ -n "$SLURM_ARRAY_TASK_ID" ]; then
     if [ -x "$(command -v mprof)" ]; then
         echo "Profiling memory usage of Python process..."
-        jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | mprof run --output "mprofile_${SLURM_JOBID}_${SLURM_ARRAY_TASK_ID}.dat" "$SCRIPT"
+        jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | mprof run --output "mprofile_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}.dat" "$SCRIPT"
     else
         jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | python -u "$SCRIPT"
     fi
