@@ -441,7 +441,7 @@ class Scheduler():
 
 
     def _persist_workfile(self, wps):
-        workfile = os.path.join(self.workdir, f'{uuid.uuid4()}-workfile.txt')
+        workfile = os.path.join(self.workdir, f'{uuid.uuid4()}-workfile.json')
         wp_params = [wp.params for wp in wps]
 
         with open(workfile, 'w', encoding='utf8') as f:
