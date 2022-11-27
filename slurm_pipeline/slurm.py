@@ -1,5 +1,4 @@
 import os
-import json
 import datetime
 import subprocess
 import logging
@@ -250,6 +249,7 @@ def parse_time(time_str):
         return datetime.timedelta()
 
     d, h, m, s = 0, 0, 0, 0
+    time_str = str(time_str)
 
     if '-' in time_str:
         d, time_str = time_str.split('-')
