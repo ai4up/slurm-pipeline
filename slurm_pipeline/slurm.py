@@ -111,14 +111,21 @@ class SlurmConfig():
 
 
     def _determine_qos(self):
+        qos = ''
         if self.partition == 'io':
             return 'io'
+
+        if self.partition == 'gpu':
+            qos = 'gpu'
+
         if not self.time or minutes(self.time) > 24 * 60 * 7:
-            return 'long'
-        if minutes(self.time) > 24 * 60:
-            return 'medium'
+            qos += 'long'
+        elif minutes(self.time) > 24 * 60:
+            qos += 'medium'
         else:
-            return 'short'
+            qos += 'short'
+
+        return qos
 
 
     def array_size(self):
