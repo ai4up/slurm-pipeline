@@ -19,6 +19,8 @@ DEFAULT_LEFT_OVER = None
 DEFAULT_SLACK_CHANNEL = None
 DEFAULT_SLACK_TOKEN = None
 DEFAULT_ACCOUNT = None
+DEFAULT_PARAM_FILES = []
+DEFAULT_PARAM_GENERATOR_FILE = None
 DEFAULT_N = None
 
 SCHEMA_PROPERTIES = """
@@ -86,7 +88,7 @@ properties:
         type: array
         items:
             type: object
-            required: [name, script, param_files, log_dir, resources]
+            required: [name, script, log_dir, resources]
             properties:
                 name:
                     type: string
@@ -96,7 +98,10 @@ properties:
                     description: Absolute path to the Python script to run.
                 param_files:
                     type: array
-                    description: Absolute paths to param_files.
+                    description: Absolute paths to files that list the params.
+                param_generator_file:
+                    type: string
+                    description: Absolute path to file that defines all param combinations.
                 n:
                     type: integer
                     description: "Number of parameter combinations per param_file for which to schedule slurm tasks (default: all)."
@@ -169,7 +174,7 @@ class UsageError(Exception):
 
 
 def load(path):
-    config = _load_config_yaml(path)
+    config = _load_yaml_file(path)
     _validate(config)
     _set_defaults(config)
     _merge_defaults(config)
@@ -214,7 +219,7 @@ def _files_size(path):
     return os.path.getsize(path)
 
 
-def _load_config_yaml(path):
+def _load_yaml_file(path):
     with open(path, 'r') as f:
         try:
             return yaml.safe_load(f)
@@ -228,7 +233,14 @@ def _validate(config):
     except jsonschema.exceptions.ValidationError as e:
         raise UsageError(f'Error validating config:\n{e.message} for {e.json_path}.')
 
+    _validate_param_files(config)
     _validate_property_conda_env(config)
+
+
+def _validate_param_files(config):
+    for job_conf in config['jobs']:
+        if bool(job_conf.get('param_files')) == bool(job_conf.get('param_generator_file')):  # XNOR
+            raise UsageError(f"Either param_files or param_generator_file must be specified for job {job_conf['name']}.")
 
 
 def _validate_property_conda_env(config):
@@ -255,6 +267,8 @@ def _set_defaults(config):
 
     for job in config['jobs']:
         job['n'] = job.get('n', DEFAULT_N)
+        job['param_files'] = job.get('param_files', DEFAULT_PARAM_FILES)
+        job['param_generator_file'] = job.get('param_generator_file', DEFAULT_PARAM_GENERATOR_FILE)
 
 
 def _merge_defaults(config):

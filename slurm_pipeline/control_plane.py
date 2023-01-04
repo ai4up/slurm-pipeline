@@ -6,6 +6,7 @@ import time
 import shutil
 import logging
 import datetime
+import itertools
 import subprocess
 from enum import Enum
 from pathlib import Path
@@ -93,6 +94,7 @@ class Scheduler():
         self.job_name = job_config['name']
         self.script = job_config['script']
         self.param_files = job_config['param_files']
+        self.param_generator_file = job_config['param_generator_file']
         self.n = job_config['n']
         self.log_dir = os.path.join(job_config['log_dir'], f'{self.job_name}-{self._current_time()}')
 
@@ -145,17 +147,16 @@ class Scheduler():
 
     def init_queue(self):
         logger.info('Initialized queue...')
-        for param_file in self.param_files:
-            for params in self._get_work_params(param_file):
-                try:
-                    resource_conf = config.get_resource_config(self.job_config, params)
-                    wp = WorkPackage(params, **resource_conf)
+        for params in self._get_work_params():
+            try:
+                resource_conf = config.get_resource_config(self.job_config, params)
+                wp = WorkPackage(params, **resource_conf)
 
-                except Exception as e:
-                    logger.error(f'Failed to initialize work package for {params}: {e}')
-                    wp = WorkPackage.init_failed(params, str(e))
+            except Exception as e:
+                logger.error(f'Failed to initialize work package for {params}: {e}')
+                wp = WorkPackage.init_failed(params, str(e))
 
-                self.work_packages.append(wp)
+            self.work_packages.append(wp)
 
         self.n_wps = len(self.work_packages)
         self.n_init_failed = len(self.failed_work())
@@ -460,32 +461,54 @@ class Scheduler():
             json.dump(wps, f, sort_keys=True, indent=4, ensure_ascii=False)
 
 
-    def _get_work_params(self, file_path):
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                if 'yml' in file_path[-3:] or 'yaml' in file_path[-4:]:
-                    params = yaml.safe_load(f)
-                elif 'json' in file_path[-4:]:
-                    params = json.load(f)
-                elif 'csv' in file_path[-3:]:
-                    params = list(csv.DictReader(f))
-                else:
-                    raise UsageError(f'Unsupported file type. Please specify param_file of type YAML, JSON, or CSV.')
+    def _get_work_params(self):
+        return self._read_param_files() if self.param_files else self._generate_params()
 
-        except FileNotFoundError:
-            logger.critical(f'Could not find workfile {file_path}.')
-            return []
 
-        # TODO support left_over param_file for yaml param files as well
-        # if self.left_over:
-        #     unprocessed_paths = [path for path in paths if not os.path.isfile(f'{path}_{self.left_over}.csv')]
-        #     logger.info(f'{len(unprocessed_paths)} of {len(paths)} *_{self.left_over}.csv paths left over from previous run.')
-        #     return unprocessed_paths
+    def _read_param_files(self):
+        all_params = []
+        for path in self.param_files:
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    if 'yml' in path[-3:] or 'yaml' in path[-4:]:
+                        params = yaml.safe_load(f)
+                    elif 'json' in path[-4:]:
+                        params = json.load(f)
+                    elif 'csv' in path[-3:]:
+                        params = list(csv.DictReader(f))
+                    else:
+                        raise UsageError(f'Unsupported file type. Please specify param_file of type YAML, JSON, or CSV.')
 
-        if self.n:
-            params = params[:self.n]
+            except FileNotFoundError:
+                logger.critical(f'Could not find param file {path}.')
+                return []
 
-        return params
+            if self.n:
+                all_params += params[:self.n]
+            else:
+                all_params += params
+
+        return all_params
+
+
+    def _generate_params(self):
+        path = self.param_generator_file
+        with open(path, 'r', encoding='utf-8') as f:
+            if 'yml' in path[-3:] or 'yaml' in path[-4:]:
+                config = yaml.safe_load(f)
+            elif 'json' in path[-4:]:
+                config = json.load(f)
+            else:
+                raise UsageError(f'Unsupported file type. Please specify param_generator_file of type YAML or JSON.')
+
+        for v in config.values():
+            if type(v) is not list:
+                raise UsageError(f'Malformated param_generator_file. Every attribute must be a list.')
+
+        value_combinations = list(itertools.product(*config.values()))
+        param_combinations = [dict(zip(config.keys(), p)) for p in value_combinations]
+
+        return param_combinations
 
 
     def _notify(self, msg, thread=True):
