@@ -6,12 +6,12 @@ from enum import Enum
 
 MAX_ARRAY_SIZE = 3000
 MAX_CPUS = 16
-MEM_PER_CPU = 4000
+MEM_PER_CPU = 3500
 MAX_MEM = MAX_CPUS * MEM_PER_CPU
 MAX_BROADWELL_CPUS = 32
 MAX_BROADWELL_MEM = MAX_BROADWELL_CPUS * MEM_PER_CPU
 MAX_GPU_CPUS = 16
-MAX_GPU_MEM = 250000
+MAX_GPU_MEM = 245000
 
 TEMPLATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'slurm-templates')
 
