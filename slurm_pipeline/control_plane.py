@@ -100,7 +100,6 @@ class Scheduler():
 
         self.conda_env = job_config['properties']['conda_env']
         self.account = job_config['properties']['account']
-        self.left_over = job_config['properties']['left_over']
         self.keep_work_dir = job_config['properties']['keep_work_dir']
         self.max_retries = job_config['properties']['max_retries']
         self.poll_interval = job_config['properties']['poll_interval']
@@ -237,7 +236,6 @@ class Scheduler():
             msg = '*PIPELINE JOB STARTED*\n'
             msg += f'> ⌛  Slurm {self.job_name} job is being scheduled...\n'
             msg += f'> 🌎  Scheduled param_file: {", ".join(self._param_files_names())}'
-            msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
             self._notify(msg, thread=False)
 
             if len(self.failed_work()) > 0:
@@ -266,7 +264,6 @@ class Scheduler():
         msg = '*PIPELINE JOB FINISHED*\n'
         msg += f'> 🏁  Slurm {self.job_name} job finished after {self._strf_duration()} hours.\n'
         msg += f'> 🌎  Processed param_file: {", ".join(self._param_files_names())}'
-        msg += f' (for {self.left_over} left over).\n' if self.left_over else '.\n'
         msg += f'> 🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.'
 
         self._notify(msg, thread=False)
