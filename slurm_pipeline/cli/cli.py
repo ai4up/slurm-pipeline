@@ -5,6 +5,7 @@ from enum import Enum
 from pathlib import Path
 from collections import Counter
 
+import yaml
 import typer
 import pandas as pd
 import tabulate
@@ -56,6 +57,19 @@ def start(
 
     typer.echo(f'Pipeline control plane started. Slurm job id: {job_id}')
     _persist_cli_state({'config': config, 'job_id': job_id})
+
+
+@app.command()
+def retry(
+    account: str = typer.Option('eubucco', '--account', '-a', help='Slurm account to schedule tasks.'),
+    log_dir: str = typer.Option('/p/projects/eubucco/logs/control_plane', '--log-dir', '-l', help='Directory to store logs.'),
+    env: str = typer.Option('/home/floriann/.conda/envs/slurm-pipeline', '--env', '-e', help='Conda environment.'),
+):
+    """
+    Retry failed work packages of last slurm pipeline run.
+    """
+    conf = _create_retry_slurm_config()
+    start(conf, account, log_dir, env)
 
 
 @app.command()
@@ -287,6 +301,35 @@ def _select_job(state, job_name=None):
     return _get_wp(state, job_id)
 
 
+def _create_retry_slurm_config():
+    conf = _config()
+    retry_conf = _create_retry_param_files(conf)
+
+    old_conf_path = _cli_state().get('config')
+    new_conf_path = _postfix_filename(old_conf_path, '-retry')
+
+    with open(new_conf_path, 'w') as f:
+        yaml.dump(retry_conf, f, default_flow_style=False)
+
+    return new_conf_path
+
+
+def _create_retry_param_files(conf):
+    for job, state in _work_state().items():
+        job_conf = pipeline_config.get_job_config(conf, job)
+
+        # create new param file for previously failed jobs
+        params_path = os.path.join(_newest_folder(job_conf['log_dir']), 'params-retry.json')
+        with open(params_path, 'w', encoding='utf8') as f:
+            params = [wp['params'] for wp in _failed(state)]
+            json.dump(params, f, indent=2, ensure_ascii=False)
+
+        # update slurm config with new param file
+        job_conf['param_files'] = [params_path]
+
+    return conf
+
+
 def _pending(work_packages):
     return [wp for wp in work_packages if wp['status'] == Status.PENDING.name]
 
@@ -305,6 +348,11 @@ def _error_counter(work_packages):
 
 def _error_type(wp):
     return (wp['error_msg'] or '').split(':')[0] or None
+
+
+def _postfix_filename(file_path, postfix):
+    name, ext = os.path.splitext(file_path)
+    return f'{name}{postfix}{ext}'
 
 
 def _read_log(wp, stderr=True):
