@@ -150,11 +150,12 @@ def stdout(
     job: str = typer.Option(None, '--job', '-j', help='Job name (optionally with index, i.e. name.index).'),
     job_id: str = typer.Option(None, '--job-id', '-i', help='Job id.'),
     regex: str = typer.Option(0, '--params', '-p', help='Regex pattern to search through job params. Displays first match.'),
+    failed_only: bool = typer.Option(False, '--failed', '-f', help='Show logs for failed work packages only.'),
 ):
     """
     Show stdout log for work packages.
     """
-    _logs(job_id, job, regex, stderr=False)
+    _logs(job_id, job, regex, failed_only, stderr=False)
 
 
 @app.command()
@@ -162,14 +163,15 @@ def stderr(
     job: str = typer.Option(None, '--job', '-j', help='Job name (optionally with index, i.e. name.index).'),
     job_id: str = typer.Option(None, '--job-id', '-i', help='Job id.'),
     regex: str = typer.Option(0, '--params', '-p', help='Regex pattern to search through job params. Displays first match.'),
+    failed_only: bool = typer.Option(False, '--failed', '-f', help='Show logs for failed work packages only.'),
 ):
     """
     Show stderr log for work packages.
     """
-    _logs(job_id, job, regex, stderr=True)
+    _logs(job_id, job, regex, failed_only, stderr=True)
 
 
-def _logs(job_id=None, job=None, regex=None, stderr=True):
+def _logs(job_id=None, job=None, regex=None, failed_only=False, stderr=True):
     state = _work_state()
 
     try:
@@ -180,12 +182,12 @@ def _logs(job_id=None, job=None, regex=None, stderr=True):
                 job, idx = job.split('.', 1)
                 wp = state[job][int(idx)]
             else:
-                wp = _select_job(state, job)
+                wp = _select_job(state, failed_only, job)
         elif regex:
             p = re.compile(regex)
             wp = next(wp for job_state in state.values() for wp in job_state for param in wp['params'].values() if p.match(str(param)))
         else:
-            wp = _select_job(state)
+            wp = _select_job(state, failed_only)
 
         log = _read_log(wp, stderr)
 
@@ -290,11 +292,14 @@ def _get_wp(state, job_id):
     return wp
 
 
-def _select_job(state, job_name=None):
+def _select_job(state, failed_only=False, job_name=None):
     if job_name:
         wp_choices = {f"Job: {job_name} #{idx} (Slurm id: {wp['job_id']})": wp['job_id'] for idx, wp in enumerate(state[job_name])}
     else:
-        wp_choices = {f"Job: {job_name} #{idx} (Slurm id: {wp['job_id']})": wp['job_id'] for idx, (job_name, job_state) in enumerate(state.items()) for wp in job_state}
+        wp_choices = {f"Job: {job_name} #{idx} (Slurm id: {wp['job_id']})": wp['job_id']
+                      for idx, (job_name, job_state) in enumerate(state.items())
+                      for wp in job_state
+                      if not failed_only or wp['status'] == Status.FAILED.name}
 
     answer = questionary.select('Please select work package:', choices=wp_choices.keys()).ask()
     job_id = wp_choices[answer]
