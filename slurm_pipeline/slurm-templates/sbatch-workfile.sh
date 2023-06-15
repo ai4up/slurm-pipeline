@@ -38,9 +38,9 @@ else
         # write stdout and stderr of each process to separate log files
         if [ -x "$(command -v mprof)" ]; then
             echo "Profiling memory usage of Python process..."
-            mprof run --output "mprofile_${SLURM_JOBID}_${i}.dat" "$SCRIPT" <<< $params > "${SLURM_JOBID}_${i}.stdout" 2> "${SLURM_JOBID}_${i}.stderr" &
+            mprof run --output "mprofile_${SLURM_JOBID}_${i}.dat" "$SCRIPT" <<< $params > "${SLURM_JOBID}_${i}.stdout" 2> "${SLURM_JOBID}_${i}.stderr" || touch "${SLURM_JOBID}_${i}.failed" &
         else
-            python -u "$SCRIPT" <<< $params > "${SLURM_JOBID}_${i}.stdout" 2> "${SLURM_JOBID}_${i}.stderr" &
+            python -u "$SCRIPT" <<< $params > "${SLURM_JOBID}_${i}.stdout" 2> "${SLURM_JOBID}_${i}.stderr" || touch "${SLURM_JOBID}_${i}.failed" &
         fi
 
         i=$((i+1))
@@ -48,6 +48,11 @@ else
 
     # wait for all backgrounded processes to finish
     wait
+
+    # report slurm job as failed if any background process failed
+    if ls *.failed &> /dev/null; then
+        exit 1
+    fi
 fi
 
 # SCRIPT MUSS ACCEPT INPUT FROM STDIN LIKE:
