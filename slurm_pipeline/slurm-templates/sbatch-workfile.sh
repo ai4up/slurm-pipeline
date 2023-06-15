@@ -35,13 +35,12 @@ else
 
         # start and background process
         # write memory usage to .dat file if mprof is installed
-        # write stdout and stderr of each process to separate log file
-        # as tee only captures stdout, stderr and stdout are swapped with 3>&1 1>&2 2>&3
+        # write stdout and stderr of each process to separate log files
         if [ -x "$(command -v mprof)" ]; then
             echo "Profiling memory usage of Python process..."
-            (mprof run --output "mprofile_${SLURM_JOBID}_${i}.dat" "$SCRIPT" <<< $params | tee "${SLURM_JOBID}_${i}.stdout") 3>&1 1>&2 2>&3 | tee "${SLURM_JOBID}_${i}.stderr" &
+            mprof run --output "mprofile_${SLURM_JOBID}_${i}.dat" "$SCRIPT" <<< $params > "${SLURM_JOBID}_${i}.stdout" 2> "${SLURM_JOBID}_${i}.stderr" &
         else
-            (python -u "$SCRIPT" <<< $params | tee "${SLURM_JOBID}_${i}.stdout") 3>&1 1>&2 2>&3 | tee "${SLURM_JOBID}_${i}.stderr" &
+            python -u "$SCRIPT" <<< $params > "${SLURM_JOBID}_${i}.stdout" 2> "${SLURM_JOBID}_${i}.stderr" &
         fi
 
         i=$((i+1))
