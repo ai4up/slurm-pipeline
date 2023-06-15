@@ -292,12 +292,12 @@ def _get_wp(state, job_id):
 
 def _select_job(state, job_name=None):
     if job_name:
-        wp_choices = [f"{job_name} - {wp['job_id']}" for wp in state[job_name]]
+        wp_choices = {f"Job: {job_name} #{idx} (Slurm id: {wp['job_id']})": wp['job_id'] for idx, wp in enumerate(state[job_name])}
     else:
-        wp_choices = [f"{job_name} - {wp['job_id']}" for job_name, job_state in state.items() for wp in job_state]
+        wp_choices = {f"Job: {job_name} #{idx} (Slurm id: {wp['job_id']})": wp['job_id'] for idx, (job_name, job_state) in enumerate(state.items()) for wp in job_state}
 
-    answer = questionary.select('Please select work package:', choices=wp_choices).ask()
-    job_id = answer.split('- ')[-1]
+    answer = questionary.select('Please select work package:', choices=wp_choices.keys()).ask()
+    job_id = wp_choices[answer]
     return _get_wp(state, job_id)
 
 

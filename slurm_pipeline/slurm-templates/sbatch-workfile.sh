@@ -16,6 +16,8 @@ module load jq
 source deactivate
 source activate "$CONDA_ENV"
 
+echo "Using conda env ${CONDA_ENV} and Python version $(python --version) ($(which python))."
+
 if [ -n "$SLURM_ARRAY_TASK_ID" ]; then
     if [ -x "$(command -v mprof)" ]; then
         echo "Profiling memory usage of Python process..."
