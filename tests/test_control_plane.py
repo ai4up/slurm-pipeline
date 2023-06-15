@@ -33,11 +33,10 @@ def _results():
     return succeeded_work, failed_work
 
 
-def _mock_get_work_params(*args):
-    return [{'city': f'city_{random.randint(0, 100)}'}]
-
-
-@patch.object(control_plane.Scheduler, '_get_work_params', _mock_get_work_params)
+@patch.object(control_plane.Scheduler, '_get_work_params', return_value=[
+    {'city': 'city_1'},
+    {'city': 'city_2'},
+    {'city': 'city_3'}])
 @patch.object(control_plane.Scheduler, '_persist_workfile')
 @patch("slurm_pipeline.control_plane.time.sleep")
 @patch("slurm_pipeline.control_plane.config.get_resource_config", side_effect=[
@@ -64,7 +63,10 @@ def test_main(sbatch_mock, *args):
     assert sbatch_calls[1].kwargs['slurm_conf'].cpus == 2
 
 
-@patch.object(control_plane.Scheduler, '_get_work_params', _mock_get_work_params)
+@patch.object(control_plane.Scheduler, '_get_work_params', return_value=[
+    {'city': 'city_1'},
+    {'city': 'city_2'},
+    {'city': 'city_3'}])
 @patch.object(control_plane.Scheduler, '_persist_workfile')
 @patch("slurm_pipeline.control_plane.time.sleep")
 @patch("slurm_pipeline.control_plane.config.get_resource_config", side_effect=[
@@ -100,7 +102,7 @@ def test_io_scheduling(sbatch_mock, *args):
     assert f'{job_id}_1' in failed_work[1]['stderr_log']
 
 
-@patch.object(control_plane.Scheduler, '_get_work_params', _mock_get_work_params)
+@patch.object(control_plane.Scheduler, '_get_work_params', return_value=[{'city': 'city_1'}])
 @patch.object(control_plane.Scheduler, '_persist_workfile')
 @patch("slurm_pipeline.control_plane.time.sleep")
 @patch("slurm_pipeline.control_plane.config.get_resource_config", return_value={'cpus': 1, 'time': '01:00:00'})

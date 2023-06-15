@@ -18,7 +18,7 @@ def _test_config(override_conf={}):
     return {**conf, **override_conf}
 
 
-@patch('slurm_pipeline.config._load_config_yaml', return_value=_test_config({'properties': {}}))
+@patch('slurm_pipeline.config._load_yaml_file', return_value=_test_config({'properties': {}}))
 def test_load_properties_validation(mock):
     with pytest.raises(UsageError) as exc:
         config.load('some-path')
@@ -26,7 +26,7 @@ def test_load_properties_validation(mock):
     assert 'The conda_env must be specified' in str(exc.value)
 
 
-@patch('slurm_pipeline.config._load_config_yaml', return_value=_test_config({'properties': {'slack': {}}}))
+@patch('slurm_pipeline.config._load_yaml_file', return_value=_test_config({'properties': {'slack': {}}}))
 def test_load_schema_validation(mock):
     with pytest.raises(UsageError) as exc:
         config.load('some-path')
