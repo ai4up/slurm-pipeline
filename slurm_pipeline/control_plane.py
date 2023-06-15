@@ -18,8 +18,8 @@ from slurm_pipeline import config
 from slurm_pipeline import slurm
 from slurm_pipeline.config import UsageError
 from slurm_pipeline.slurm import Status, SlurmException, SlurmConfig
-from slurm_pipeline.cluster_utils.slack_notifications import SlackLoggingHandler
-import slurm_pipeline.cluster_utils.slack_notifications as slack
+from slurm_pipeline.slack_notifications import SlackLoggingHandler
+import slurm_pipeline.slack_notifications as slack
 
 logger = logging.getLogger(__name__)
 
