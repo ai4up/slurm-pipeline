@@ -275,14 +275,14 @@ def _config():
     return pipeline_config.load(config_path)
 
 
-def _newest_folder(path):
-    return max(Path(path).glob('*/'), key=os.path.getmtime)
+def _newest_job_folder(path, job_name):
+    return max(Path(path).glob(f'{job_name}-*/'), key=os.path.getmtime)
 
 
 def _work_state():
     state = {}
     for job in _config()['jobs']:
-        path = os.path.join(_newest_folder(job['log_dir']), 'work.json')
+        path = os.path.join(_newest_job_folder(job['log_dir'], job['name']), 'work.json')
         state[job['name']] = _load(path)
     return state
 
@@ -324,7 +324,7 @@ def _create_retry_param_files(conf):
         job_conf = pipeline_config.get_job_config(conf, job)
 
         # create new param file for previously failed jobs
-        params_path = os.path.join(_newest_folder(job_conf['log_dir']), 'params-retry.json')
+        params_path = os.path.join(_newest_job_folder(job_conf['log_dir'], job), 'params-retry.json')
         with open(params_path, 'w', encoding='utf8') as f:
             params = [wp['params'] for wp in _failed(state)]
             json.dump(params, f, indent=2, ensure_ascii=False)
