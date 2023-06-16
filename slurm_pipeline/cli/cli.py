@@ -37,6 +37,9 @@ def start(
     """
     Start the slurm pipeline.
     """
+    stderr = 'control_plane.stderr'
+    stdout = 'control_plane.stdout'
+
     slurm_conf = SlurmConfig(
         job_name='control_plane',
         cpus=1,
@@ -44,8 +47,8 @@ def start(
         time=None,
         account=account,
         log_dir=log_dir,
-        error='control_plane.stderr',
-        output='control_plane.stdout',
+        error=stderr,
+        output=stdout,
         env_vars=f'PYTHONPATH={PROJECT_PATH}',
     )
     job_id = slurm.sbatch(
@@ -56,7 +59,13 @@ def start(
         )
 
     typer.echo(f'Pipeline control plane started. Slurm job id: {job_id}')
-    _persist_cli_state({'config': config, 'job_id': job_id})
+    state = {
+        'config': config,
+        'job_id': job_id,
+        'stdout':  os.path.join(log_dir, stdout),
+        'stderr':  os.path.join(log_dir, stderr),
+    }
+    _persist_cli_state(state)
 
 
 @app.command()
@@ -161,11 +170,15 @@ def stdout(
     job_id: str = typer.Option(None, '--job-id', '-i', help='Job id.'),
     regex: str = typer.Option(0, '--params', '-p', help='Regex pattern to search through job params. Displays first match.'),
     failed_only: bool = typer.Option(False, '--failed', '-f', help='Show logs for failed work packages only.'),
+    control_plane: bool = typer.Option(False, '--control', '-c', help='Show control plane logs.'),
 ):
     """
     Show stdout log for work packages.
     """
-    _logs(job_id, job, regex, failed_only, stderr=False)
+    if control_plane:
+        _control_plane_logs(stderr=False)
+    else:
+        _logs(job_id, job, regex, failed_only, stderr=False)
 
 
 @app.command()
@@ -174,11 +187,15 @@ def stderr(
     job_id: str = typer.Option(None, '--job-id', '-i', help='Job id.'),
     regex: str = typer.Option(0, '--params', '-p', help='Regex pattern to search through job params. Displays first match.'),
     failed_only: bool = typer.Option(False, '--failed', '-f', help='Show logs for failed work packages only.'),
+    control_plane: bool = typer.Option(False, '--control', '-c', help='Show control plane logs.'),
 ):
     """
     Show stderr log for work packages.
     """
-    _logs(job_id, job, regex, failed_only, stderr=True)
+    if control_plane:
+        _control_plane_logs(stderr=True)
+    else:
+        _logs(job_id, job, regex, failed_only, stderr=True)
 
 
 def _logs(job_id=None, job=None, regex=None, failed_only=False, stderr=True):
@@ -215,6 +232,16 @@ def _logs(job_id=None, job=None, regex=None, failed_only=False, stderr=True):
 
     except IndexError:
             typer.echo(f'Could not find work package for given options. Job index {idx} is out of bounds.')
+
+
+def _control_plane_logs(stderr=True):
+    log_type = 'stderr' if stderr else 'stdout'
+    log_path = _cli_state().get(log_type)
+    log = _read_log(log_path)
+
+    console = Console()
+    with console.pager():
+        console.print(log)
 
 
 @app.command()
