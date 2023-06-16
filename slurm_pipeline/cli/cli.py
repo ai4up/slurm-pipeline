@@ -227,7 +227,7 @@ def _logs(job_id=None, job=None, regex=None, failed_only=False, stderr=True):
         with console.pager():
             console.print(log)
 
-    except (StopIteration, ValueError):
+    except StopIteration:
             typer.echo('Could not find work package for given options.')
 
     except IndexError:
@@ -339,8 +339,15 @@ def _select_job(state, failed_only=False, job_name=None):
                       for wp in job_state
                       if not failed_only or wp['status'] == Status.FAILED.name}
 
-    answer = questionary.select('Please select work package:', choices=wp_choices.keys()).ask()
-    job_id = wp_choices[answer]
+    l = len(wp_choices.keys())
+    if l > 1:
+        answer = questionary.select('Please select work package:', choices=wp_choices.keys()).ask()
+        job_id = wp_choices[answer]
+    elif l == 1:
+        job_id = wp_choices.values()[0]
+    else:
+        raise StopIteration()
+
     return _get_wp(state, job_id)
 
 
