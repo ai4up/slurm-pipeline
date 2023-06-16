@@ -62,6 +62,7 @@ def start(
     state = {
         'config': config,
         'job_id': job_id,
+        'account': account,
         'stdout':  os.path.join(log_dir, stdout),
         'stderr':  os.path.join(log_dir, stderr),
     }
@@ -148,6 +149,13 @@ def work(
     with console.pager():
         json_job_state = json.dumps(state[job], indent=2, ensure_ascii=False)
         console.print(json_job_state)
+
+
+@app.command()
+def squeue():
+    account = _cli_state().get('account')
+    status = slurm.squeue(account=account)
+    typer.echo(status)
 
 
 @app.command()

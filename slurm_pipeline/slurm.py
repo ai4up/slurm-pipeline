@@ -242,6 +242,21 @@ def cancel(job_id):
         raise SlurmException(f'Error running Slurm cmd {cmd}:\n{p.stderr.decode("UTF-8")}')
 
 
+def squeue(job=None, account=None):
+    logger.debug(f'Squeueing Slurm jobs...')
+
+    cmd = 'squeue --states=all'
+    cmd += f' --name={job}' if job else ''
+    cmd += f' --account={account}' if account else ''
+
+    p = subprocess.run(cmd, capture_output=True, shell=True)
+
+    if p.returncode > 0:
+        raise SlurmException(f'Error running Slurm cmd {cmd}:\n{p.stderr.decode("UTF-8")}')
+
+    return p.stdout.decode('UTF-8')
+
+
 def minutes(time_str):
     timedelta = parse_time(time_str)
     return round(timedelta.total_seconds() / 60)
