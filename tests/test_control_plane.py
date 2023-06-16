@@ -97,9 +97,9 @@ def test_io_scheduling(sbatch_mock, *args):
     assert succeeded_work[0]['job_id'] == job_id
     assert failed_work[0]['job_id'] == job_id
     assert failed_work[1]['job_id'] == job_id
-    assert f'{job_id}_0' in succeeded_work[0]['stderr_log']
-    assert f'{job_id}_0' in failed_work[0]['stderr_log']
-    assert f'{job_id}_1' in failed_work[1]['stderr_log']
+    assert f'{job_id}_0' in succeeded_work[0]['stderr']
+    assert f'{job_id}_0' in failed_work[0]['stderr']
+    assert f'{job_id}_1' in failed_work[1]['stderr']
 
 
 @patch.object(control_plane.Scheduler, '_get_work_params', return_value=[{'city': 'city_1'}])

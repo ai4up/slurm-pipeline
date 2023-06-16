@@ -199,7 +199,8 @@ def _logs(job_id=None, job=None, regex=None, failed_only=False, stderr=True):
         else:
             wp = _select_job(state, failed_only)
 
-        log = _read_log(wp, stderr)
+        log_type = 'stderr' if stderr else 'stdout'
+        log = _read_log(wp[log_type])
 
         if not log:
             typer.echo(f"Log file for job {wp['job_id']} is empty or does not yet exist.")
@@ -230,7 +231,7 @@ def inspect_validate_ids_results(
     msg_on_interest = ['Nb duplicates id geom', 'Nb duplicates id attrib', 'Nb duplicates id after merge', 'Nb disagreements id_source']
     for wp in job_state:
         result = {}
-        log = _read_log(wp, stderr=False)
+        log = _read_log(wp['stdout'])
         result['log'] = log
         result['status'] = wp['status']
         result['country'] = wp['params']['city_path'].split('/')[6]
@@ -370,10 +371,9 @@ def _postfix_filename(file_path, postfix):
     return f'{name}{postfix}{ext}'
 
 
-def _read_log(wp, stderr=True):
+def _read_log(path):
     try:
-        log_type = 'stderr' if stderr else 'stdout'
-        return Path(wp[f'{log_type}_log']).read_text()
+        return Path(path).read_text()
     except (FileNotFoundError, TypeError):
         return ''
 

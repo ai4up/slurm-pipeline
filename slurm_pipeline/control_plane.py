@@ -45,8 +45,8 @@ class WorkPackage():
         self.status = WorkPackage.Status.PENDING
         self.slurm_status = None
         self.error_msg = None
-        self.stderr_log = None
-        self.stdout_log = None
+        self.stderr = None
+        self.stdout = None
         self.mem_profile = None
         self.max_mem = None
         self.job_id = None
@@ -74,8 +74,8 @@ class WorkPackage():
             'slurm_status': self.slurm_status.name if self.slurm_status else None,
             'n_tries': self.n_tries,
             'job_id': self.job_id,
-            'stdout_log': self.stdout_log,
-            'stderr_log': self.stderr_log,
+            'stdout': self.stdout,
+            'stderr': self.stderr,
             'mem_profile': self.mem_profile,
             'max_mem': self.max_mem,
             'error_msg': self.error_msg,
@@ -353,7 +353,7 @@ class Scheduler():
 
 
     def _oom_cancellation(self, wp):
-        with open(wp.stderr_log) as f:
+        with open(wp.stderr) as f:
             return 'Exceeded job memory limit' in f.read()
 
 
@@ -427,8 +427,8 @@ class Scheduler():
                     wp.job_id = job_id
                     file_id = f'{job_id}_{i}'
 
-                wp.stdout_log = os.path.join(self.task_log_dir, f'{file_id}.stdout')
-                wp.stderr_log = os.path.join(self.task_log_dir, f'{file_id}.stderr')
+                wp.stdout = os.path.join(self.task_log_dir, f'{file_id}.stdout')
+                wp.stderr = os.path.join(self.task_log_dir, f'{file_id}.stderr')
                 wp.mem_profile = os.path.join(self.task_log_dir, f'mprofile_{file_id}.dat')
                 wp.n_tries += 1
 
