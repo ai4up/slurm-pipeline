@@ -115,6 +115,7 @@ class Scheduler():
         self.work_packages = []
         self.n_wps = None
         self.slack_thread_id = None
+        self.failure_notification = True
 
         self._safely_mkdir(self.workdir)
         self._safely_mkdir(self.task_log_dir)
@@ -232,32 +233,21 @@ class Scheduler():
 
 
     def notify_start(self):
-        if self.slack_channel and self.slack_token:
-            msg = '*PIPELINE JOB STARTED*\n'
-            msg += f'> ⌛  Slurm {self.job_name} job is being scheduled...\n'
-            msg += f'> 🌎  Scheduled param_file: {", ".join(self._param_files_names())}'
-            self._notify(msg, thread=False)
+        msg = self._status_msg()
+        self.slack_thread_id, self.slack_channel = self._notify(msg, thread=False)
 
-            if len(self.failed_work()) > 0:
-                msg = f'🚨  {len(self.failed_work())} of {self.n_wps} work packages could not be initialized and are marked as failed.'
-                self._notify(msg)
+        if len(self.failed_work()) > 0:
+            msg = f'🚨  {len(self.failed_work())} of {self.n_wps} work packages could not be initialized and are marked as failed.'
+            self._notify(msg)
 
 
     def notify_status(self):
-        if not self._every_n_polls(100):
-            return
+        msg = self._status_msg()
+        self._notify(msg, update=True)
 
-        msg = f'*Status update after {self._strf_duration()}*\n'
-        msg += f'> TOTAL: {self.n_wps}\n'
-        msg += f'> PENDING: {len(self.pending_work())}\n'
-        msg += f'> SUCCEEDED: {len(self.succeeded_work())}\n'
-        msg += f'> FAILED: {len(self.failed_work())}\n'
-
-        failure_causes = [wp.slurm_status.name for wp in self.failed_work() if wp.slurm_status]
-        for k, v in Counter(failure_causes).most_common():
-            msg += f'>   > slurm {k.lower()}: {v}\n'
-
-        self._notify(msg)
+        if self._every_n_polls(100):
+            msg = self._failure_summary()
+            self._notify(msg)
 
 
     def notify_failure(self, wp):
@@ -266,29 +256,30 @@ class Scheduler():
 
         msg = f'*Work package {wp.job_id} failed*\n'
         msg += f'Slurm status: `{wp.slurm_status.name}`\n'
-        msg += f'# of retries: `{wp.n_tries - 1}`\n'
+        msg += f'Retries: `{wp.n_tries - 1}`\n'
 
         if wp.error_msg:
             msg += f'Error msg: `{wp.error_msg}`\n'
 
         if stderr:
             stderr_tail = '\n'.join(stderr.splitlines()[-50:])
-            msg += f'Stderr log:\n ```{stderr_tail}```\n'
+            msg += f'Stderr log: ```{stderr_tail}```\n'
 
         if stdout:
             stdout_tail = '\n'.join(stdout.splitlines()[-50:])
-            msg += f'Stdout log:\n ```{stdout_tail}```\n'
+            msg += f'Stdout log: ```{stdout_tail}```\n'
+
+        if self.failure_notification:
+            msg += '<!channel>'
+            self.failure_notification = False
 
         self._notify(msg)
 
 
     def notify_done(self):
-        msg = '*PIPELINE JOB FINISHED*\n'
-        msg += f'> 🏁  Slurm {self.job_name} job finished after {self._strf_duration()} hours.\n'
-        msg += f'> 🌎  Processed param_file: {", ".join(self._param_files_names())}'
-        msg += f'> 🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.'
-
-        self._notify(msg, thread=False)
+        self.notify_status()
+        self._notify(self._failure_summary())
+        self._notify('<!channel> *PIPELINE JOB FINISHED*\n')
 
 
     def cleanup(self):
@@ -532,16 +523,40 @@ class Scheduler():
         return param_combinations
 
 
-    def _notify(self, msg, thread=True):
+    def _status_msg(self):
+        msg = f'*PIPELINE JOB {self.job_name.upper()}*\n'
+        msg += f'> ⚙️  Scheduled param_files: {", ".join(self._param_files_names())}\n'
+        msg += f'> ⌛  Running for {self._strf_duration()} hours...\n'
+        msg += f'> 🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.\n'
+        msg += f'> ❌  {len(self.failed_work())} of {self.n_wps} work packages failed.\n'
+        return msg
+
+
+    def _failure_summary(self):
+        failure_causes = [wp.slurm_status.name for wp in self.failed_work() if wp.slurm_status]
+
+        msg = 'Summary of most frequent Slurm failure status:\n'
+        for k, v in Counter(failure_causes).most_common():
+            msg += f'> {k.lower()}: {v}\n'
+
+        return msg
+
+
+    def _notify(self, msg, thread=True, update=False):
         if self.slack_channel and self.slack_token:
             try:
-                thread_id = self.slack_thread_id if thread else None
-                self.slack_thread_id = slack.send_message(msg, self.slack_channel, self.slack_token, thread_id)
+                if update:
+                    return slack.update_message(msg, self.slack_channel, self.slack_token, self.slack_thread_id)
+                elif thread:
+                    return slack.send_message(msg, self.slack_channel, self.slack_token, self.slack_thread_id)
+                else:
+                    return slack.send_message(msg, self.slack_channel, self.slack_token)
+
             except Exception as e:
                 logger.error(f'Failed to send Slack message: {e}')
         else:
-            logger.info(f'No notification hook configured. Cannot send message {msg}.')
-            logger.info('Consider adding a Slack channel and token to the config.')
+            logger.debug(f'No notification hook configured. Cannot send message {msg}.')
+            logger.debug('Consider adding a Slack channel and token to the config.')
 
 
     def _init_failure_threshold_reached(self):

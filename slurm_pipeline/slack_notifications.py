@@ -31,18 +31,32 @@ class SlackLoggingHandler(StreamHandler):
             _handle_exception(f'{msg} - {e}')
 
 
-def send_message(message, channel, token, thread_id=None):
+def send_message(text, channel, token, thread_id=None):
     try:
         client = WebClient(token)
         response = client.chat_postMessage(
             channel=channel,
-            text=message,
+            text=text,
             thread_ts=thread_id
         )
-        return response['ts']
+        return response['ts'], response['channel']
 
     except SlackApiError as e:
         _handle_exception(f'Error occurred sending slack message to channel {channel}: {e}')
+
+
+def update_message(text, channel, token, message_id):
+    try:
+        client = WebClient(token)
+        response = client.chat_update(
+            channel=channel,
+            text=text,
+            ts=message_id
+        )
+        return response['ts'], response['channel']
+
+    except SlackApiError as e:
+        _handle_exception(f'Error occurred updating slack message (timestamp {message_id}) in channel {channel}: {e}')
 
 
 def react(emoji, thread_id, channel, token):
