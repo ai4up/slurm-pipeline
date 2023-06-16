@@ -61,6 +61,7 @@ def start(
 
 @app.command()
 def retry(
+    dry_run: bool = typer.Option(False, '--dry-run', help='Only create new param files and slurm config, but do not restart the pipeline.'),
     account: str = typer.Option('eubucco', '--account', '-a', help='Slurm account to schedule tasks.'),
     log_dir: str = typer.Option('/p/projects/eubucco/logs/control_plane', '--log-dir', '-l', help='Directory to store logs.'),
     env: str = typer.Option('/home/floriann/.conda/envs/slurm-pipeline', '--env', '-e', help='Conda environment.'),
@@ -69,7 +70,10 @@ def retry(
     Retry failed work packages of last slurm pipeline run.
     """
     conf = _create_retry_slurm_config()
-    start(conf, account, log_dir, env)
+    typer.echo(f'New slurm config with updated param files has been created: {conf}')
+
+    if not dry_run:
+        start(conf, account, log_dir, env)
 
 
 @app.command()

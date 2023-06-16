@@ -30,7 +30,7 @@ properties:
             type: string
             description: Conda environment.
         account:
-            type: [string, null]
+            type: [string, 'null']
             description: Slurm account.
         log_level:
             type: string
@@ -69,10 +69,10 @@ properties:
             required: [channel, token]
             properties:
                 channel:
-                    type: [string, null]
+                    type: [string, 'null']
                     description: Slack channel name or ID.
                 token:
-                    type: [string, null]
+                    type: [string, 'null']
                     description: Slack API token.
 """
 
@@ -96,10 +96,10 @@ properties:
                     type: array
                     description: Absolute paths to files that list the params.
                 param_generator_file:
-                    type: [string, null]
+                    type: [string, 'null']
                     description: Absolute path to file that defines all param combinations.
                 n:
-                    type: [integer, null]
+                    type: [integer, 'null']
                     description: "Number of parameter combinations per param_file for which to schedule slurm tasks (default: all)."
                 log_dir:
                     type: string
