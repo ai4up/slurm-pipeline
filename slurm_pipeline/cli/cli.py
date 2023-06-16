@@ -89,7 +89,10 @@ def abort(
     if all:
         for job_state in state.values():
             for wp in job_state:
-                slurm.cancel(wp['job_id'])
+                if wp['job_id']:
+                    slurm.cancel(wp['job_id'])
+                else:
+                    typer.echo('Not all work packages have been initialized. Please retry in a few moments.')
 
         cp_job_id = _cli_state()['job_id']
         slurm.cancel(cp_job_id)
@@ -99,7 +102,10 @@ def abort(
         try:
             job_state = state[job]
             for wp in job_state:
-                slurm.cancel(wp['job_id'])
+                if wp['job_id']:
+                    slurm.cancel(wp['job_id'])
+                else:
+                    typer.echo('Not all work packages have been initialized. Please retry in a few moments.')
 
             typer.echo(f'{job} jobs have been aborted.')
         except KeyError:
