@@ -244,7 +244,7 @@ class Scheduler():
 
 
     def notify_status(self):
-        if not self._every_n_polls(25):
+        if not self._every_n_polls(100):
             return
 
         msg = f'*Status update after {self._strf_duration()}*\n'
@@ -256,6 +256,28 @@ class Scheduler():
         failure_causes = [wp.slurm_status.name for wp in self.failed_work() if wp.slurm_status]
         for k, v in Counter(failure_causes).most_common():
             msg += f'>   > slurm {k.lower()}: {v}\n'
+
+        self._notify(msg)
+
+
+    def notify_failure(self, wp):
+        stderr = self._read_log(wp.stderr)
+        stdout = self._read_log(wp.stdout)
+
+        msg = f'*Work package {wp.job_id} failed*\n'
+        msg += f'Slurm status: `{wp.slurm_status.name}`\n'
+        msg += f'# of retries: `{wp.n_tries - 1}`\n'
+
+        if wp.error_msg:
+            msg += f'Error msg: `{wp.error_msg}`\n'
+
+        if stderr:
+            stderr_tail = '\n'.join(stderr.splitlines()[-50:])
+            msg += f'Stderr log:\n ```{stderr_tail}```\n'
+
+        if stdout:
+            stdout_tail = '\n'.join(stdout.splitlines()[-50:])
+            msg += f'Stdout log:\n ```{stdout_tail}```\n'
 
         self._notify(msg)
 
@@ -315,6 +337,7 @@ class Scheduler():
 
     def _process_failure(self, wp):
         self._decommission(wp)
+        self.notify_failure(wp)
         logger.error(f'Unexpected error occurred for job {wp.name} ({wp.job_id}). Removing job from queue.')
 
 
@@ -335,7 +358,9 @@ class Scheduler():
     def _process_oom(self, wp):
         wp.mem = wp.mem or wp.cpus * slurm.MEM_PER_CPU
         if wp.mem >= slurm.MAX_GPU_MEM:
-            logger.error(f'Job {wp.name} ({wp.job_id}) ran out of memory, but has already been allocated the maximum available memory ({slurm.MAX_GPU_MEM}). Rescheduling not possible. Removing job from queue.')
+            msg = f'Job {wp.name} ({wp.job_id}) ran out of memory, but has already been allocated the maximum available memory ({slurm.MAX_GPU_MEM}). Rescheduling not possible. Removing job from queue.'
+            logger.error(msg)
+            wp.error_msg = msg
             self._decommission(wp)
         else:
             wp.mem *= self.exp_backoff_factor
@@ -353,8 +378,7 @@ class Scheduler():
 
 
     def _oom_cancellation(self, wp):
-        with open(wp.stderr) as f:
-            return 'Exceeded job memory limit' in f.read()
+        return 'Exceeded job memory limit' in self._read_log(wp.stderr)
 
 
     def _decommission(self, wp, error_msg=None):
@@ -576,3 +600,10 @@ class Scheduler():
 
         logger.debug(f'Work was grouped in {len(list(groups.values()))} groups with {list(groups.keys())} cpu, memory, timeout & partition configurations respectively.')
         yield from groups.values()
+
+
+    def _read_log(self, path):
+        try:
+            return Path(path).read_text()
+        except (FileNotFoundError, TypeError):
+            return ''
