@@ -571,7 +571,7 @@ class Scheduler():
 
 
     def _strf_duration(self):
-        return str(datetime.timedelta(seconds=self._duration())).split('.')[0]
+        return str(datetime.timedelta(seconds=self._duration())).rsplit(':', 1)[0]
 
 
     def _current_time(self):
