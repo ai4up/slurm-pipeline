@@ -352,7 +352,7 @@ def _select_job(state, failed_only=False, job_name=None):
         answer = questionary.select('Please select work package:', choices=wp_choices.keys()).ask()
         job_id = wp_choices[answer]
     elif l == 1:
-        job_id = wp_choices.values()[0]
+        job_id = list(wp_choices.values())[0]
     else:
         raise StopIteration()
 
