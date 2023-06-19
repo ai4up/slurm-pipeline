@@ -2,8 +2,19 @@
 The slurm pipeline facilitates the scheduling of [slurm](https://slurm.schedmd.com/overview.html) jobs. It allows to sequentially schedule multiple jobs and supports logging, retrying, dynamic allocation of computing resources, and intelligent parallization via slurm job arrays.
 
 
+## Install
+Install from local wheel file:
+```
+pip install dist/slurm_pipeline-*.whl
+```
+
+
 ## CLI
 A CLI allows to control the slurm pipeline, such as starting & aborting jobs, inspecting logs, and more. See [CLI docs](#cli-docs) section for more details.
+
+<!-- agg --speed=1.5 --cols=100 --rows=25 --font-size=24 docs/slurm-pipeline-demo.cast docs/slurm-pipeline-demo.gif -->
+![](./docs/slurm-pipeline-demo.gif)
+
 
 **Commands**:
 
@@ -24,7 +35,7 @@ A CLI allows to control the slurm pipeline, such as starting & aborting jobs, in
 The config file is the heart of the slurm-pipeline. Here, all jobs and properties are specified. The job order in the config determines the sequential scheduling order. 
 
 The minimal config looks like:
-```
+```yaml
 jobs:
   - name: <some-name>
     script: </path-to/script-name.py>
@@ -40,11 +51,11 @@ properties:
   conda_env: </path-to/.conda/envs/env-name>
   account: <slurm-account>
 ```
-A more extensive template can be found at `template-config.yml`. For an exact definition of the schema and all available properties, please see `slurm_pipeline/config.py`.
+A more extensive template can be found at [`docs/template-config.yml`](./docs/template-config.yml). For an exact definition of the schema and all available properties, please see [`slurm_pipeline/config.py`](./slurm_pipeline/config.py).
 
 ## Jobs
 Each job is based on an executable Python script. The path to the `script` must be specified in the slurm config. Additionally, a JSON, YAML, or CSV formatted `param_file` can be provided which includes a list of arguments that will be passed one by one via stdin to the Python script. For example, the following `param_file` will trigger two runs of the job script with different parameterizations:
-```json
+```yaml
 - param_1: some-value
   param_2: some-value
 
@@ -63,6 +74,15 @@ def job_main(param_1, param_2):
 if __name__ == '__main__':
     params = json.load(sys.stdin)
     job_main(**params)
+```
+
+
+## Development
+
+Build from source:
+```
+poetry build
+pip install dist/slurm_pipeline-*.whl --force-reinstall --no-deps
 ```
 
 
