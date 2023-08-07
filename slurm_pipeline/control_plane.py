@@ -558,6 +558,8 @@ class Scheduler():
             logger.debug(f'No notification hook configured. Cannot send message {msg}.')
             logger.debug('Consider adding a Slack channel and token to the config.')
 
+        return None, None
+
 
     def _init_failure_threshold_reached(self):
         failure_rate = self.n_init_failed / self.n_wps
