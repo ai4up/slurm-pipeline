@@ -245,7 +245,7 @@ class Scheduler():
         msg = self._status_msg()
         self._notify(msg, update=True)
 
-        if self._every_n_polls(100):
+        if self._every_n_polls(100) and len(self.failed_work()) > 0:
             msg = self._failure_summary()
             self._notify(msg)
 
