@@ -139,12 +139,17 @@ def status():
 
 @app.command()
 def work(
-    job: str = typer.Argument(..., help='Job name.'),
+    job: str = typer.Option(None, '--job', '-j', help='Job name.'),
 ):
     """
     Show state of work packages.
     """
     state = _work_state()
+
+    if not job:
+        jobs = list(state.keys())
+        job = _select_job(jobs)
+
     console = Console()
     with console.pager():
         json_job_state = json.dumps(state[job], indent=2, ensure_ascii=False)
@@ -217,12 +222,12 @@ def _logs(job_id=None, job=None, regex=None, failed_only=False, stderr=True):
                 job, idx = job.split('.', 1)
                 wp = state[job][int(idx)]
             else:
-                wp = _select_job(state, failed_only, job)
+                wp = _select_wp(state, failed_only, job)
         elif regex:
             p = re.compile(regex)
             wp = next(wp for job_state in state.values() for wp in job_state for param in wp['params'].values() if p.match(str(param)))
         else:
-            wp = _select_job(state, failed_only)
+            wp = _select_wp(state, failed_only)
 
         log_type = 'stderr' if stderr else 'stdout'
         log = _read_log(wp[log_type])
@@ -338,7 +343,15 @@ def _get_wp(state, job_id):
     return wp
 
 
-def _select_job(state, failed_only=False, job_name=None):
+def _select_job(jobs):
+    if len(jobs) > 1:
+        job = questionary.select('Please select job:', choices=jobs).ask()
+    else:
+        job = jobs[0]
+
+    return job
+
+def _select_wp(state, failed_only=False, job_name=None):
     if job_name:
         wp_choices = {f"Job: {job_name} #{idx} (Slurm id: {wp['job_id']})": wp['job_id'] for idx, wp in enumerate(state[job_name])}
     else:
