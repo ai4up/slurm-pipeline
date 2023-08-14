@@ -526,7 +526,12 @@ class Scheduler():
     def _status_msg(self):
         msg = f'*PIPELINE JOB {self.job_name.upper()}*\n'
         msg += f'> ⚙️  Scheduled param_files: {", ".join(self._param_files_names())}\n'
-        msg += f'> ⌛  Running for {self._strf_duration()} hours...\n'
+
+        if self.pending_work():
+            msg += f'> ⌛  Running for {self._strf_duration()} hours...\n'
+        else:
+            msg += f'> 🏁  Finished after {self._strf_duration()} hours.\n'
+
         msg += f'> 🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.\n'
         msg += f'> ❌  {len(self.failed_work())} of {self.n_wps} work packages failed.\n'
         return msg
