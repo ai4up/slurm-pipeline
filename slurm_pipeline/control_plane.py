@@ -267,6 +267,12 @@ class Scheduler():
 
         if stdout:
             stdout_tail = '\n'.join(stdout.splitlines()[-50:])
+
+            # flush long messages to avoid unexpected splitting in code block
+            if len(stdout_tail) + len(msg) + 30 > 4000:
+                self._notify(msg)
+                msg = ''
+
             msg += f'Stdout log: ```{stdout_tail}```\n'
 
         if self.failure_notification:
