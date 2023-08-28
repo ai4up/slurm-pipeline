@@ -115,6 +115,7 @@ class Scheduler():
         self.work_packages = []
         self.n_wps = None
         self.slack_thread_id = None
+        self.slack_thread_id_details = None
         self.failure_notification = True
 
         self._safely_mkdir(self.workdir)
@@ -234,7 +235,11 @@ class Scheduler():
 
     def notify_start(self):
         msg = self._status_msg()
-        self.slack_thread_id, self.slack_channel = self._notify(msg, thread=False)
+        self.slack_thread_id, self.slack_channel = self._notify(msg)
+
+        work_status = self._format_work_status()
+        self.slack_thread_id_details, _ = self._notify(work_status)
+
 
         if len(self.failed_work()) > 0:
             msg = f'🚨  {len(self.failed_work())} of {self.n_wps} work packages could not be initialized and are marked as failed.'
@@ -244,6 +249,9 @@ class Scheduler():
     def notify_status(self):
         msg = self._status_msg()
         self._notify(msg, update=True)
+
+        work_status = self._format_work_status()
+        self._notify(work_status, update=True, thread_id=self.slack_thread_id_details)
 
         if self._every_n_polls(100) and len(self.failed_work()) > 0:
             msg = self._failure_summary()
@@ -553,15 +561,23 @@ class Scheduler():
         return msg
 
 
-    def _notify(self, msg, thread=True, update=False):
+    def _format_work_status(self):
+        wps = [wp.encode() for wp in self.work_packages]
+        msg = yaml.dump(wps, default_flow_style=False)
+        return f'```{msg}```'
+
+
+    def _notify(self, msg, thread_id=None, update=False):
         if self.slack_channel and self.slack_token:
             try:
+                if thread_id is None:
+                    thread_id = self.slack_thread_id
+
                 if update:
-                    return slack.update_message(msg, self.slack_channel, self.slack_token, self.slack_thread_id)
-                elif thread:
-                    return slack.send_message(msg, self.slack_channel, self.slack_token, self.slack_thread_id)
+                    return slack.update_message(msg, self.slack_channel, self.slack_token, thread_id)
                 else:
-                    return slack.send_message(msg, self.slack_channel, self.slack_token)
+                    return slack.send_message(msg, self.slack_channel, self.slack_token, thread_id)
+
 
             except Exception as e:
                 logger.error(f'Failed to send Slack message: {e}')
