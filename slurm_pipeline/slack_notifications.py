@@ -43,6 +43,7 @@ def send_message(text, channel, token, thread_id=None):
 
     except SlackApiError as e:
         _handle_exception(f'Error occurred sending slack message to channel {channel}: {e}')
+        return None, None
 
 
 def update_message(text, channel, token, message_id):
@@ -57,6 +58,7 @@ def update_message(text, channel, token, message_id):
 
     except SlackApiError as e:
         _handle_exception(f'Error occurred updating slack message (timestamp {message_id}) in channel {channel}: {e}')
+        return None, None
 
 
 def react(emoji, thread_id, channel, token):
