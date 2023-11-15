@@ -12,9 +12,9 @@ jobs:
       time: "06:00:00"
     special_cases:
       - name: large-files
-        file:
-          path: /static/directory/{{country}}/{{other-var}}/static_filename.csv
-          file_size_min: 100000000
+        files:
+          path: "/static/directory/{{country}}/{{other-var}}/static_filename.csv"
+          size_min: 100000000
         resources:
           cpus: 8
           time: "24:00:00"
