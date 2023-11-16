@@ -449,10 +449,15 @@ class Scheduler():
             logger.info(f'Successfully scheduled Slurm job {job_id} with array tasks {task_ids}')
 
             for i, wp in enumerate(wps):
-                if task_ids:
+                if len(wps) == 1:
+                    wp.job_id = job_id
+                    file_id = job_id
+                elif task_ids:
+                    # parallelized via slurm array
                     wp.job_id = task_ids.pop(0)
                     file_id = wp.job_id
                 else:
+                    # parallelized using bash's job control
                     wp.job_id = job_id
                     file_id = f'{job_id}_{i}'
 
