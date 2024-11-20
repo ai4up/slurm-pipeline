@@ -13,7 +13,9 @@ WORKFILE="$3"
 module load anaconda
 module load jq
 
-source deactivate
+for i in $(seq ${CONDA_SHLVL}); do
+    source deactivate
+done
 source activate "$CONDA_ENV"
 
 echo "Using conda env ${CONDA_ENV} and Python version $(python --version) ($(which python))."

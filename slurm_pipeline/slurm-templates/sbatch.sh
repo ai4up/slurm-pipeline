@@ -10,7 +10,9 @@ ARGS="$3"
 
 module load anaconda
 
-source deactivate
+for i in $(seq ${CONDA_SHLVL}); do
+    source deactivate
+done
 source activate "$CONDA_ENV"
 
 if [ "$SCRIPT" == "*.py" ]; then
