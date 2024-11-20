@@ -13,6 +13,7 @@ module load anaconda
 for i in $(seq ${CONDA_SHLVL}); do
     source deactivate
 done
+unset PYTHONPATH
 source activate "$CONDA_ENV"
 
 if [ "$SCRIPT" == "*.py" ]; then

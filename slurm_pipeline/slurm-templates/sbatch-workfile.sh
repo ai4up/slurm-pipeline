@@ -16,6 +16,7 @@ module load jq
 for i in $(seq ${CONDA_SHLVL}); do
     source deactivate
 done
+unset PYTHONPATH
 source activate "$CONDA_ENV"
 
 echo "Using conda env ${CONDA_ENV} and Python version $(python --version) ($(which python))."
