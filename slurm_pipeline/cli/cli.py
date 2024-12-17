@@ -240,7 +240,7 @@ def _logs(job_id=None, job=None, regex=None, failed_only=False, stderr=True):
         with console.pager():
             console.print(log)
 
-    except StopIteration:
+    except (StopIteration, KeyError):
             typer.echo('Could not find work package for given options.')
 
     except IndexError:
