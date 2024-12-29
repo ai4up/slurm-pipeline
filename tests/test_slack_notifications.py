@@ -6,15 +6,16 @@ import slurm_pipeline.slack_notifications as sn
 from slurm_pipeline.slack_notifications import SlackLoggingHandler
 
 
-@patch.object(sn.WebClient, 'chat_postMessage', return_value={'ts': 'new-thread-id'})
+@patch.object(sn.WebClient, 'chat_postMessage', return_value={'ts': 'new-thread-id', 'channel': 'some-channel'})
 def test_send_message(mock):
-    thread_id = sn.send_message('some-message', 'some-channel', 'some-token')
+    thread_id, channel = sn.send_message('some-message', 'some-channel', 'some-token')
 
     a = mock.call_args.kwargs
     assert a['text'] == 'some-message'
     assert a['channel'] == 'some-channel'
     assert a['thread_ts'] == None
     assert thread_id == 'new-thread-id'
+    assert channel == 'some-channel'
 
 
 @patch.object(sn.WebClient, 'chat_postMessage', side_effect=SlackApiError('msg', 'res'))
