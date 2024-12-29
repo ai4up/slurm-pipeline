@@ -34,11 +34,12 @@ class SlackLoggingHandler(StreamHandler):
 def send_message(text, channel, token, thread_id=None):
     try:
         client = WebClient(token)
-        response = client.chat_postMessage(
-            channel=channel,
-            text=text,
-            thread_ts=thread_id
-        )
+        for chunk in _split_message_preserve_code_blocks(text):
+            response = client.chat_postMessage(
+                channel=channel,
+                text=chunk,
+                thread_ts=thread_id
+            )
         return response['ts'], response['channel']
 
     except SlackApiError as e:
@@ -73,6 +74,35 @@ def react(emoji, thread_id, channel, token):
 
     except SlackApiError as e:
         _handle_exception(f'Error occurred reacting to slack message in channcel {channel}: {e}')
+
+
+def _split_message_preserve_code_blocks(text, limit=4000):
+    parts = []
+    current_part = ""
+
+    for line in text.splitlines(keepends=True):
+        # Detect breaks
+        if len(current_part) + len(line) < limit - 4:
+            current_part += line
+            continue
+
+        # Close code block if needed
+        if _in_code_block(current_part):
+            current_part += "```\n"
+            parts.append(current_part)
+            current_part = "```\n"
+            current_part += line
+        else:
+            parts.append(current_part)
+            current_part = line
+
+    parts.append(current_part)
+
+    return parts
+
+
+def _in_code_block(text):
+    return text.count("```") % 2 == 1
 
 
 def _handle_exception(msg):
