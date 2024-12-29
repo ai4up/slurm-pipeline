@@ -238,7 +238,10 @@ class Scheduler():
         self.slack_thread_id, self.slack_channel = self._notify(msg)
 
         work_status = self._format_work_status()
-        self.slack_thread_id_details, _ = self._notify(work_status)
+        if len(work_status) < 2000:
+            self.slack_thread_id_details, _ = self._notify(work_status)
+        else:
+            logger.info('Work status is too long to send as a Slack message.')
 
 
         if len(self.failed_work()) > 0:
@@ -250,8 +253,9 @@ class Scheduler():
         msg = self._status_msg()
         self._notify(msg, update=True)
 
-        work_status = self._format_work_status()
-        self._notify(work_status, update=True, thread_id=self.slack_thread_id_details)
+        if self.slack_thread_id_details:
+            work_status = self._format_work_status()
+            self._notify(work_status, update=True, thread_id=self.slack_thread_id_details)
 
         if self._every_n_polls(100) and len(self.failed_work()) > 0:
             msg = self._failure_summary()
