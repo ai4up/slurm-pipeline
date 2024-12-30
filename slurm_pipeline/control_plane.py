@@ -359,9 +359,12 @@ class Scheduler():
 
 
     def _process_oom(self, wp):
-        wp.mem = wp.mem or wp.cpus * slurm.MEM_PER_CPU
-        if wp.mem >= slurm.MAX_GPU_MEM:
-            msg = f'Job {wp.name} ({wp.job_id}) ran out of memory, but has already been allocated the maximum available memory ({slurm.MAX_GPU_MEM}). Rescheduling not possible. Removing job from queue.'
+        max_mem = slurm.GPU_MEM_PER_CPU if wp.partition == 'gpu' else slurm.MEM_PER_CPU
+        mem_per_cpu = slurm.GPU_MAX_MEM if wp.partition == 'gpu' else slurm.MAX_MEM
+        wp.mem = wp.mem or wp.cpus * mem_per_cpu
+
+        if wp.mem >= max_mem:
+            msg = f'Job {wp.name} ({wp.job_id}) ran out of memory, but has already been allocated the maximum available memory ({max_mem}). Rescheduling not possible. Removing job from queue.'
             logger.error(msg)
             wp.error_msg = msg
             self._decommission(wp)

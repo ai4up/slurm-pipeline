@@ -4,14 +4,12 @@ import subprocess
 import logging
 from enum import Enum
 
-MAX_ARRAY_SIZE = 3000
-MAX_CPUS = 16
-MEM_PER_CPU = 3500
-MAX_MEM = MAX_CPUS * MEM_PER_CPU
-MAX_BROADWELL_CPUS = 32
-MAX_BROADWELL_MEM = MAX_BROADWELL_CPUS * MEM_PER_CPU
-MAX_GPU_CPUS = 16
-MAX_GPU_MEM = 245000
+MAX_ARRAY_SIZE = 1001
+MAX_CPUS = 128
+MAX_MEM = 690000
+MEM_PER_CPU = 5468
+GPU_MAX_MEM = 690000
+GPU_MEM_PER_CPU = 11328
 
 TEMPLATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'slurm-templates')
 
@@ -90,24 +88,12 @@ class SlurmConfig():
 
 
     def _determine_partition(self):
-        if self.mem > MAX_BROADWELL_MEM:
-            return 'gpu'
-
-        if self.cpus > MAX_CPUS or self.mem > MAX_MEM:
-            return 'broadwell'
-
         return 'standard'
 
 
     def _determine_gres(self):
-        if self.partition != 'gpu':
-            return None
-
-        if self.cpus > MAX_GPU_CPUS / 2 or self.mem > MAX_GPU_MEM / 2:
-            logger.info("Requesting more than half of the node's cpus or memory capacity, thus both GPU cards are needed.")
-            return 'gpu:v100:2'
-        else:
-            return 'gpu:v100:1'
+        if self.partition == 'gpu':
+            return 'gpu'
 
 
     def _determine_qos(self):
@@ -133,17 +119,17 @@ class SlurmConfig():
 
 
     def validate_and_adjust(self):
-        if self.cpus > MAX_BROADWELL_CPUS:
-            logger.warning(f'Requesting {self.cpus} CPUs, but max allowed is {MAX_BROADWELL_CPUS}. Reducing CPUs accordingly.')
-            self.cpus = MAX_BROADWELL_CPUS
+        if self.cpus > MAX_CPUS:
+            logger.warning(f'Requesting {self.cpus} CPUs, but max allowed is {MAX_CPUS}. Reducing CPUs accordingly.')
+            self.cpus = MAX_CPUS
 
-        if self.mem > MAX_GPU_MEM:
-            logger.warning(f'Requesting {self.mem}MB memory, but max allowed is {MAX_GPU_MEM}. Reducing memory accordingly.')
-            self.mem = MAX_GPU_MEM
+        if self.partition == 'gpu' and self.mem > GPU_MAX_MEM:
+            logger.warning(f'Requesting {self.mem}MB memory, but max allowed is {GPU_MAX_MEM}. Reducing memory accordingly.')
+            self.mem = GPU_MAX_MEM
 
-        if self.cpus > MAX_GPU_CPUS and self.mem > MAX_BROADWELL_MEM:
-            logger.warning('Resource conflict. Request exceeds max compatible resources for CPU and memory. Reducing CPUs to fit request on GPU node with high memory availability.')
-            self.cpus = MAX_GPU_CPUS
+        elif self.mem > MAX_MEM:
+            logger.warning(f'Requesting {self.mem}MB memory, but max allowed is {MAX_MEM}. Reducing memory accordingly.')
+            self.mem = MAX_MEM
 
         if self.array and self.partition == 'io':
             self.array = None # schedule tasks subsequently on io partition as it does not support sbatch arrays
