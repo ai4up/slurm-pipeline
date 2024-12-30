@@ -353,9 +353,9 @@ def _select_job(jobs):
 
 def _select_wp(state, failed_only=False, job_name=None):
     if job_name:
-        wp_choices = {f"Job: {job_name} #{idx} (Slurm id: {wp['job_id']})": wp['job_id'] for idx, wp in enumerate(state[job_name])}
+        wp_choices = {f"Job: {job_name} #{idx} {wp['status']} (Slurm id: {wp['job_id']})": wp['job_id'] for idx, wp in enumerate(state[job_name])}
     else:
-        wp_choices = {f"Job: {job_name} #{idx} (Slurm id: {wp['job_id']})": wp['job_id']
+        wp_choices = {f"Job: {job_name} #{idx} {wp['status']} (Slurm id: {wp['job_id']})": wp['job_id']
                       for idx, (job_name, job_state) in enumerate(state.items())
                       for wp in job_state
                       if not failed_only or wp['status'] == Status.FAILED.name}
