@@ -11,7 +11,6 @@ SCRIPT="$2"
 WORKFILE="$3"
 
 module load anaconda
-module load jq
 
 for i in $(seq ${CONDA_SHLVL}); do
     source deactivate
