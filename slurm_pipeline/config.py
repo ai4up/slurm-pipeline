@@ -1,5 +1,6 @@
 import os
 import re
+import glob
 import json
 import logging
 import textwrap
@@ -209,10 +210,14 @@ def _interpolate_variables(path, params):
 
 
 def _files_size(path):
-    if os.path.isdir(path):
-        return sum(f.stat().st_size for f in Path(path).glob('**/*') if f.is_file())
+    if  '*' in path:
+        files = glob.glob(path, recursive=True)
+    elif os.path.isdir(path):
+        files = Path(path).rglob('*')
+    else:
+        files = [path]
 
-    return os.path.getsize(path)
+    return sum(os.path.getsize(f) for f in files if os.path.isfile(f))
 
 
 def _load_yaml_file(path):
