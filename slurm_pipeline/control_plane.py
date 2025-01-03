@@ -163,6 +163,10 @@ class Scheduler():
         self.n_init_failed = len(self.failed_work())
         self._persist_work_status()
 
+        if self.n_wps == 0:
+            logger.error('No work packages specified. Pipeline will stop automatically...')
+            return
+
         if self._init_failure_threshold_reached():
             logger.critical(f'Failure threshold of {self.failure_threshold} reached during work initialization. No Slurm jobs will be scheduled. Aborting the pipeline run...')
             self._panic()
