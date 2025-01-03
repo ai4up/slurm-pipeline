@@ -9,7 +9,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=control_plane.stdout
 #SBATCH --error=control_plane.stderr
-#SBATCH --workdir=/p/tmp/floriann/control_plane
+#SBATCH --chdir=/p/tmp/floriann/control_plane
 
 pwd; hostname; date
 
