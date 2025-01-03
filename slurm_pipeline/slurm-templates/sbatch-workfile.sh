@@ -9,6 +9,7 @@ MAX_CONCURRENT_JOBS=5
 CONDA_ENV="$1"
 SCRIPT="$2"
 WORKFILE="$3"
+N_WPS=$(jq 'length' "$WORKFILE")
 
 module load anaconda
 
@@ -27,9 +28,17 @@ if [ -n "$SLURM_ARRAY_TASK_ID" ]; then
     else
         jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | python -u "$SCRIPT"
     fi
+elif [ "$N_WPS" -eq 1 ]; then
+    echo "Workfile contains only single work package. Job array specification not required."
+    if [ -x "$(command -v mprof)" ]; then
+        echo "Profiling memory usage of Python process..."
+        jq ".[0]" "$WORKFILE" | mprof run --output "mprofile_${SLURM_JOBID}.dat" "$SCRIPT"
+    else
+        jq ".[0]" "$WORKFILE" | python -u "$SCRIPT"
+    fi
 else
     i=0
-    echo "Job array not specified. Iterating over work packages in workfile concurrently (max ${MAX_CONCURRENT_JOBS} in parallel)."
+    echo "Job array not specified. Iterating over ${N_WPS} work packages in workfile concurrently (max ${MAX_CONCURRENT_JOBS} in parallel)."
     for params in $(jq -c '.[]' "$WORKFILE"); do
 
         # process at most 5 work packages concurrently
