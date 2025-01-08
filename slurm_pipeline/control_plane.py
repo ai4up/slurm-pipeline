@@ -227,8 +227,11 @@ class Scheduler():
 
 
     def wait(self):
-        logger.info(f'Waiting {self.poll_interval}s until new poll...')
-        time.sleep(self.poll_interval)
+        if self._duration() < 300:
+            time.sleep(1)
+        else:
+            logger.info(f'Waiting {self.poll_interval}s until new poll...')
+            time.sleep(self.poll_interval)
 
 
     def persist_results(self):
