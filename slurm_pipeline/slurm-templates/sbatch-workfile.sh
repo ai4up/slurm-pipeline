@@ -24,7 +24,7 @@ echo "Using conda env ${CONDA_ENV} and Python version $(python --version) ($(whi
 if [ -n "$SLURM_ARRAY_TASK_ID" ]; then
     if [ -x "$(command -v mprof)" ]; then
         echo "Profiling memory usage of Python process..."
-        jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | mprof run --output "mprofile_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}.dat" "$SCRIPT"
+        jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | mprof run --output "mprofile_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}.dat" python "$SCRIPT"
     else
         jq ".[${SLURM_ARRAY_TASK_ID}]" "$WORKFILE" | python -u "$SCRIPT"
     fi
@@ -32,7 +32,7 @@ elif [ "$N_WPS" -eq 1 ]; then
     echo "Workfile contains only single work package. Job array specification not required."
     if [ -x "$(command -v mprof)" ]; then
         echo "Profiling memory usage of Python process..."
-        jq ".[0]" "$WORKFILE" | mprof run --output "mprofile_${SLURM_JOBID}.dat" "$SCRIPT"
+        jq ".[0]" "$WORKFILE" | mprof run --output "mprofile_${SLURM_JOBID}.dat" python "$SCRIPT"
     else
         jq ".[0]" "$WORKFILE" | python -u "$SCRIPT"
     fi
@@ -51,7 +51,7 @@ else
         # write stdout and stderr of each process to separate log files
         if [ -x "$(command -v mprof)" ]; then
             echo "Profiling memory usage of Python process..."
-            mprof run --output "mprofile_${SLURM_JOBID}_${i}.dat" "$SCRIPT" <<< $params > "${SLURM_JOBID}_${i}.stdout" 2> "${SLURM_JOBID}_${i}.stderr" || touch "${SLURM_JOBID}_${i}.failed" &
+            mprof run --output "mprofile_${SLURM_JOBID}_${i}.dat" python "$SCRIPT" <<< $params > "${SLURM_JOBID}_${i}.stdout" 2> "${SLURM_JOBID}_${i}.stderr" || touch "${SLURM_JOBID}_${i}.failed" &
         else
             python -u "$SCRIPT" <<< $params > "${SLURM_JOBID}_${i}.stdout" 2> "${SLURM_JOBID}_${i}.stderr" || touch "${SLURM_JOBID}_${i}.failed" &
         fi
