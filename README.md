@@ -3,9 +3,9 @@ The slurm pipeline facilitates the scheduling of [slurm](https://slurm.schedmd.c
 
 
 ## Install
-Install from local wheel file:
+Install from GitHub:
 ```
-pip install dist/slurm_pipeline-*.whl
+pip install git+https://github.com/ai4up/slurm-pipeline@main
 ```
 
 
@@ -82,7 +82,7 @@ if __name__ == '__main__':
 Build from source:
 ```
 poetry build
-pip install dist/slurm_pipeline-*.whl --force-reinstall --no-deps
+pip install dist/slurm_pipeline-*.whl
 ```
 
 
