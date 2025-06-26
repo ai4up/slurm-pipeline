@@ -57,10 +57,10 @@ A more extensive template can be found at [`docs/template-config.yml`](./docs/te
 Each job is based on an executable Python script. The path to the `script` must be specified in the slurm config. Additionally, a JSON, YAML, or CSV formatted `param_file` can be provided which includes a list of arguments that will be passed one by one via stdin to the Python script. For example, the following `param_file` will trigger two runs of the job script with different parameterizations:
 ```yaml
 - param_1: some-value
-  param_2: some-value
+  param_2: value
 
 - param_1: other-value
-  param_2: other-value
+  param_2: value
 ```
  These arguments can be used in the Python script as follows: 
 ```Python
@@ -75,6 +75,13 @@ if __name__ == '__main__':
     params = json.load(sys.stdin)
     job_main(**params)
 ```
+
+Parameterizations can also be generated using a `param_generator_file` which generates every combination of the specific parameter value lists:
+```yaml
+param_1: [some-value, other-value]
+param_2: [value]
+```
+This yields the equivalent parameterization as the `param_file` file above. For more detailed examples, refer to [`docs/param-generator-file.md`](./docs/param-generator-file.md).
 
 
 ## Development
