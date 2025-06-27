@@ -366,8 +366,8 @@ class Scheduler():
 
 
     def _process_oom(self, wp):
-        max_mem = slurm.GPU_MEM_PER_CPU if wp.partition == 'gpu' else slurm.MEM_PER_CPU
-        mem_per_cpu = slurm.GPU_MAX_MEM if wp.partition == 'gpu' else slurm.MAX_MEM
+        max_mem = slurm.GPU_MAX_MEM if wp.partition == 'gpu' else slurm.MAX_MEM
+        mem_per_cpu = slurm.GPU_MEM_PER_CPU if wp.partition == 'gpu' else slurm.MEM_PER_CPU
         wp.mem = wp.mem or wp.cpus * mem_per_cpu
 
         if wp.mem >= max_mem:
