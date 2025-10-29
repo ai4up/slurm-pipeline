@@ -3,6 +3,7 @@ import uuid
 import csv
 import json
 import time
+import random
 import shutil
 import logging
 import datetime
@@ -108,6 +109,9 @@ class Scheduler():
         self.slack_channel = job_config['properties']['slack']['channel']
         self.slack_token = job_config['properties']['slack']['token']
         self.exp_backoff_factor = job_config['properties']['exp_backoff_factor']
+        self.canary_count = job_config['properties']['canary_count']
+        self.canary_wait_time = job_config['properties']['canary_wait_time']
+        self.canary_selector = job_config['properties']['canary_selector']
 
         self.start_time = time.time()
         self.workdir = os.path.join(self.log_dir, 'workdir')
@@ -126,6 +130,12 @@ class Scheduler():
         self.init_queue()
         self.notify_start()
         self.init_logger()
+
+        self.schedule_canaries()
+        while self.canary_in_flight():
+            self.wait()
+            self.monitor()
+            self.notify_status()
 
         while self.pending_work():
             self.schedule()
@@ -224,6 +234,55 @@ class Scheduler():
         if self._runtime_failure_threshold_reached():
             logger.critical(f'Failure threshold of {self.failure_threshold} reached. Cancelling all Slurm jobs and aborting the pipeline run...')
             self._panic()
+
+
+    def schedule_canaries(self):
+        queued = self.queued_work()
+
+        if not queued:
+            logger.warning("No queued work available for canary selection.")
+            return
+
+        self.canary_count = min(self.canary_count, len(queued))
+
+        if self.canary_selector == "random":
+            self.canary_wps = random.sample(queued, self.canary_count)
+        else:
+            self.canary_wps = queued[:self.canary_count]
+
+        logger.info(f"Launching {len(self.canary_wps)} canary job(s) before main scheduling...")
+
+        for group in self._groupby_resource_allocation(self.canary_wps):
+            for chunk in self._slurm_chunks(group):
+                self._submit_work(chunk)
+
+
+    def canary_in_flight(self):
+        if self.canary_count == 0:
+            return False
+
+        failed = [wp for wp in self.canary_wps if wp.status == WorkPackage.Status.FAILED]
+        succeeded = [wp for wp in self.canary_wps if wp.status == WorkPackage.Status.SUCCEEDED]
+        pending = [wp for wp in self.canary_wps if wp.status == WorkPackage.Status.PENDING]
+        # failed = self.failed_work()
+        # succeeded = self.succeeded_work()
+        # pending = self.scheduled_work()
+
+        if failed:
+            logger.critical(f"{len(failed)} canary job(s) failed. Aborting pipeline.")
+            self._panic()
+            return False
+
+        if len(succeeded) >= self.canary_count:
+            logger.info("All canary jobs succeeded. Proceeding with scheduling of remaining jobs.")
+            return False
+
+        if self.canary_wait_time and self._duration() >= self.canary_wait_time:
+            logger.info(f"Canary wait time ({self.canary_wait_time}s) elapsed without failures. Proceeding with scheduling of remaining jobs.")
+            return False
+
+        logger.info(f"Waiting for canary jobs... {len(pending)} still pending.")
+        return True
 
 
     def wait(self):
@@ -559,8 +618,13 @@ class Scheduler():
         else:
             msg += f'> 🏁  Finished after {self._strf_duration()} hours.\n'
 
-        msg += f'> 🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.\n'
-        msg += f'> ❌  {len(self.failed_work())} of {self.n_wps} work packages failed.\n'
+        if self.canary_in_flight():
+            msg += f'> 🐤  {len(self.succeeded_work())} of {self.canary_count} canaries succeeded.\n'
+            msg += f'> ⏰  {len(self.queued_work())} of {self.n_wps} work packages waiting.\n'
+        else:
+            msg += f'> 🎉  {len(self.succeeded_work())} of {self.n_wps} work packages succeeded.\n'
+            msg += f'> ❌  {len(self.failed_work())} of {self.n_wps} work packages failed.\n'
+
         return msg
 
 

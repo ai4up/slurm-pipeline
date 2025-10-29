@@ -15,6 +15,9 @@ DEFAULT_EXP_BACKOFF_FACTOR = 4
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_FAILURE_THRESHOLD = 0.25
 DEFAULT_FAILURE_THRESHOLD_ACTIVATION = 50
+DEFAULT_CANARY_COUNT = 0
+DEFAULT_CANARY_SELECTOR = "first"
+DEFAULT_CANARY_WAIT_TIME = None
 DEFAULT_KEEP_WORK_DIR = False
 DEFAULT_SLACK_CHANNEL = None
 DEFAULT_SLACK_TOKEN = None
@@ -65,6 +68,19 @@ properties:
             type: integer
             minimum: 1
             description: Number of initial work packages to be processed before the failure threshold is evaluated for the first time.
+        canary_count:
+            type: integer
+            description: "Number of canary jobs to run before scheduling the rest (0 disables canary mode)."
+            minimum: 0
+        canary_selector:
+            type: string
+            description: "Which jobs to use as canaries: 'first' or 'random'."
+            enum: ["first", "random"]
+        canary_wait_time:
+            type: [integer, 'null']
+            description: "Time in seconds to wait before proceeding if no canary jobs fail. If not specified, waits until canary jobs finish."
+            minimum: 0
+
         slack:
             type: object
             required: [channel, token]
@@ -261,6 +277,9 @@ def _set_defaults(config):
     config['properties']['exp_backoff_factor'] = config['properties'].get('exp_backoff_factor', DEFAULT_EXP_BACKOFF_FACTOR)
     config['properties']['failure_threshold'] = config['properties'].get('failure_threshold', DEFAULT_FAILURE_THRESHOLD)
     config['properties']['failure_threshold_activation'] = config['properties'].get('failure_threshold_activation', DEFAULT_FAILURE_THRESHOLD_ACTIVATION)
+    config['properties']['canary_count'] = config['properties'].get('canary_count', DEFAULT_CANARY_COUNT)
+    config['properties']['canary_selector'] = config['properties'].get('canary_selector', DEFAULT_CANARY_SELECTOR)
+    config['properties']['canary_wait_time'] = config['properties'].get('canary_wait_time', DEFAULT_CANARY_WAIT_TIME)
     config['properties']['slack'] = config['properties'].get('slack', {})
     config['properties']['slack']['channel'] = config['properties']['slack'].get('channel', DEFAULT_SLACK_CHANNEL)
     config['properties']['slack']['token'] = config['properties']['slack'].get('token', DEFAULT_SLACK_TOKEN)
