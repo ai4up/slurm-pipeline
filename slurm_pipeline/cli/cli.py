@@ -212,7 +212,12 @@ def stderr(
 
 
 def _logs(job_id=None, job=None, regex=None, failed_only=False, stderr=True):
-    state = _work_state()
+    try:
+        state = _work_state()
+
+    except FileNotFoundError:
+        typer.echo('Slurm pipeline jobs have not been initialized. Check control plane logs for details.')
+        return
 
     try:
         if job_id:
